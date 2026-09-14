@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ассистент заявок Протэк</title>
+<meta name="description" content="Пробник страницы-ассистента b2b-портала: заявка клиента превращается в корзину, спецификацию, КП или заказ.">
+<!-- Пробник публичный, но искать его незачем: данные выдуманы. -->
+<meta name="robots" content="noindex, nofollow">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Roboto+Condensed:wght@500;600;700&family=Roboto+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<p class="demo-ribbon">
+  <strong>Пробник.</strong> Клиенты, цены и номера выдуманы, на портал и в 1С ничего не уходит.
+  Нажимайте всё подряд — начать сначала можно кнопкой «Новая заявка».
+</p>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="brand-name">Протэк</span>
+    <span class="brand-sub">Ассистент заявок</span>
+  </div>
+
+  <!-- Активная компания — состояние аккаунта на портале, и заказ уходит на неё.
+       Поэтому она крупно и всегда на виду, а не спрятана в профиль. -->
+  <button type="button" class="client" id="client-button" aria-haspopup="dialog">
+    <span class="client-label">Заказ уйдёт на</span>
+    <span class="client-name" id="client-name">—</span>
+    <span class="client-inn" id="client-inn"></span>
+    <span class="client-change">Сменить клиента</span>
+  </button>
+
+  <div class="topbar-end">
+    <button type="button" class="btn" id="new-request">Новая заявка</button>
+    <span class="who">Анна Демо, менеджер</span>
+  </div>
+</header>
+
+<div class="workspace">
+  <aside class="rail" aria-label="Заявка клиента и ход работы">
+    <section class="rail-block">
+      <h2 class="label">Заявка клиента</h2>
+      <div id="source" class="source"></div>
+    </section>
+
+    <section class="rail-block rail-log">
+      <h2 class="label">Ход работы</h2>
+      <ol id="log" class="log" aria-live="polite"></ol>
+    </section>
+
+    <form class="rail-block composer" id="composer">
+      <label class="label" for="composer-text">Дослать позиции в эту заявку</label>
+      <textarea id="composer-text" rows="3" placeholder="Клиент что-то дописал — вставьте сюда, прежний подбор не пропадёт"></textarea>
+      <div class="composer-row">
+        <button type="button" class="link" id="composer-sample">Вставить пример</button>
+        <button type="submit" class="btn btn-small" id="composer-send">Добавить в заявку</button>
+      </div>
+    </form>
+  </aside>
+
+  <main class="main" id="main"></main>
+</div>
+
+<dialog id="company-dialog" aria-labelledby="company-title">
+  <form method="dialog" class="dialog" id="company-form">
+    <header class="dialog-head">
+      <h2 id="company-title">Сменить клиента</h2>
+      <p>Клиент меняется и на сайте портала: активная компания у аккаунта одна. Подбор останется, корзина пересоберётся по его ценам.</p>
+    </header>
+    <div class="dialog-body">
+      <label class="label" for="company-query">Название или ИНН</label>
+      <input type="search" id="company-query" autocomplete="off" placeholder="например, «Демо» или 7000000002">
+      <ul class="company-list" id="company-list"></ul>
+    </div>
+    <footer class="dialog-foot">
+      <button type="submit" class="btn" value="cancel">Закрыть</button>
+    </footer>
+  </form>
+</dialog>
+
+<dialog id="delivery-dialog" aria-labelledby="delivery-title">
+  <form method="dialog" class="dialog" id="delivery-form">
+    <header class="dialog-head">
+      <h2 id="delivery-title">Способ получения</h2>
+      <p>Без него портал заказ не примет. Способы и адреса — те, что портал предлагает этому клиенту.</p>
+    </header>
+    <div class="dialog-body" id="delivery-options"></div>
+    <footer class="dialog-foot">
+      <button type="submit" class="btn" value="cancel">Отмена</button>
+      <button type="button" class="btn btn-primary" id="delivery-apply">Выбрать</button>
+    </footer>
+  </form>
+</dialog>
+
+<dialog id="order-dialog" aria-labelledby="order-title">
+  <form method="dialog" class="dialog dialog-wide" id="order-form">
+    <header class="dialog-head">
+      <h2 id="order-title">Оформление заказа</h2>
+      <p>Проверьте клиента: заказ сразу уходит в 1С, и отменить его отсюда нельзя.</p>
+    </header>
+    <div class="dialog-body" id="order-body"></div>
+    <footer class="dialog-foot">
+      <button type="submit" class="btn" value="cancel">Вернуться к заявке</button>
+      <button type="button" class="btn btn-go" id="order-place">Оформить заказ</button>
+    </footer>
+  </form>
+</dialog>
+
+<script src="demo-api.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
