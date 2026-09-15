@@ -81,7 +81,7 @@ a:hover { text-decoration: underline; }
 /* --- каркас портала ------------------------------------------------------ */
 
 .topbar { background: var(--topbar); }
-.topbar-in { display: flex; justify-content: space-between; align-items: center; gap: 16px; min-height: 32px; }
+.topbar-in { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 4px 16px; min-height: 32px; }
 .demo-note { display: flex; align-items: center; gap: 8px; font: 400 13px/18px var(--font); color: var(--ink-2); }
 .demo-pill {
   padding: 1px 8px; border-radius: 9999px; background: #1F1F1F; color: #fff;
@@ -89,6 +89,13 @@ a:hover { text-decoration: underline; }
 }
 .topbar-links { display: flex; gap: 20px; font: 700 14px/20px var(--cond); text-transform: uppercase; color: #000; }
 .topbar-links span { display: inline-flex; align-items: center; gap: 2px; cursor: default; }
+/* Временно: где стоит полоса итога — см. app.js, «полоса итога». */
+.bar-pick { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; padding-block: 4px; font: 400 13px/18px var(--font); color: var(--ink-2); }
+.bar-pick button {
+  padding: 1px 10px; border: 1px solid rgba(0, 0, 0, .3); border-radius: 9999px; background: none;
+  color: #000; font: 400 13px/18px var(--font); cursor: pointer;
+}
+.bar-pick button[aria-pressed="true"] { border-color: #1F1F1F; background: #1F1F1F; color: #fff; }
 
 .navbar { background: var(--header); }
 .navbar-in { display: flex; align-items: flex-end; gap: 12px; min-height: 56px; }
@@ -338,7 +345,7 @@ table.lines { width: 100%; border-collapse: separate; border-spacing: 0; font-si
 /* Ход работы — там, где нажали: панель итога в конце листа может быть не видна. */
 .busy-line { display: inline-flex; align-items: center; gap: 8px; min-height: 30px; font-size: 14px; line-height: 20px; color: var(--ink-2); }
 
-/* --- низ листа: не вошло, предупреждения, действия ------------------------ */
+/* --- низ листа: не вошло, предупреждения, комментарий --------------------- */
 
 .notes { display: flex; flex-direction: column; gap: 12px; padding: 16px; }
 .warnings { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; }
@@ -350,37 +357,85 @@ table.lines { width: 100%; border-collapse: separate; border-spacing: 0; font-si
 .removed h3 { font: 700 16px/22px var(--cond); }
 .removed ul { margin: 0; padding-left: 20px; font-size: 14px; line-height: 20px; color: var(--ink-2); }
 
-/* Две строки: наверху итог, доставка и отмена заявки — подальше от
-   «Оформить»; внизу подсказка о следующем шаге и действия. Панель стоит
-   в конце листа и за прокруткой не едет (решение владельца 15.09.2026):
-   прилипшая к низу экрана, она ездила за менеджером и закрывала строки.
-   Поэтому ход долгой работы виден ещё у раскрытой строки и в «Ходе работы». */
-.actionbar {
-  display: flex; flex-direction: column; gap: 10px;
-  padding: 12px 16px 14px; border-top: 1px solid var(--line);
-  border-radius: 0 0 var(--radius-card) var(--radius-card);
-  background: var(--card);
+.note-comment { display: flex; gap: 8px; font-size: 14px; line-height: 20px; color: var(--ink-2); }
+.note-comment .icon { color: var(--ink-3); }
+
+/* Лист кончается таблицей — у последней строки нет черты, углы скруглены. */
+.table-wrap:last-child { border-radius: 0 0 var(--radius-card) var(--radius-card); }
+.table-wrap:last-child .lines tbody > tr:last-child,
+.table-wrap:last-child .lines tbody > tr:last-child > td { border-bottom-color: transparent; }
+
+/* Отмена заявки — наверху листа, как «Очистить корзину» у портала: подальше
+   от «Оформить заказ». Набрана как действия портала над таблицей. */
+.tool {
+  display: inline-flex; align-items: center; gap: 4px; align-self: center;
+  padding: 4px 8px 4px 6px; border: 0; border-radius: var(--radius); background: none;
+  color: var(--link); font: 700 14px/20px var(--cond); letter-spacing: .04em; text-transform: uppercase; cursor: pointer;
 }
-.bar-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 28px; }
-.bar-cancel { margin-left: auto; }
-.next-step { flex: 1 1 260px; display: flex; align-items: center; gap: 8px; font-size: 14px; line-height: 20px; color: var(--ink); }
-.next-step .icon { color: var(--warn-icon); }
-.next-step.is-ready { color: var(--ink); }
-.next-step.is-ready .icon { color: var(--secondary-dark); }
-.next-step.is-busy { color: var(--ink-2); }
+.tool:hover { background: var(--primary-5); }
+.tool-danger { color: var(--error); }
+.tool-danger:hover { background: #FDF0EE; }
+.tool:disabled, .tool:disabled:hover { background: none; color: var(--ink-4); cursor: not-allowed; }
 
-.total { display: flex; flex-direction: column; }
-.total-sum { font: 700 28px/32px var(--cond); font-variant-numeric: tabular-nums; }
-.total-note { font-size: 12px; line-height: 16px; color: var(--ink-3); }
-
-.facts { flex: 1 1 240px; display: flex; flex-direction: column; gap: 4px; min-width: 0; font-size: 14px; line-height: 20px; }
-.fact { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.fact .icon { color: var(--ink-3); }
-.fact-empty { color: var(--ink); }
-.fact-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 420px; }
-
-.actions { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 8px; margin-left: auto; }
 .todo-row { margin-top: 8px; }
+
+/* --- полоса итога: как у портала ----------------------------------------- */
+
+/* Как в корзине, КП и спецификации портала (по скриншотам владельца
+   15.09.2026): полоса во всю ширину окна, слева действия заглавными —
+   главное залито, остальные в рамке; справа «Итого с НДС» подписями над
+   числами. Над полосой плашка, как «Рекомендуется замена в 2 строках»
+   у портала: у нас в ней следующий шаг, а пока идёт работа — её ход. */
+.checkout { background: var(--card); border-top: 1px solid var(--line); }
+.checkout-in { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 32px; padding-block: 12px; }
+.checkout-acts { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.checkout-sums { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 24px; margin-left: auto; }
+.sum-col { display: flex; flex-direction: column; min-width: 0; }
+/* «Итого с НДС:» и суммы переносятся вместе: подпись не остаётся одна в конце строки. */
+.sum-group { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 24px; }
+.sum-label { margin-right: -8px; font-size: 16px; line-height: 24px; }
+.sum-value { display: inline-flex; align-items: center; gap: 4px; font: 700 16px/24px var(--font); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.sum-value .icon { color: var(--ink-3); }
+.sum-total { font-size: 18px; }
+.sum-delivery { display: flex; align-items: baseline; gap: 8px; line-height: 24px; }
+.sum-text { max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Кнопки полосы — как у портала: заглавные, Roboto Condensed 700. */
+.pbtn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  min-height: 36px; padding: 0 16px; border: 1px solid var(--outline); border-radius: var(--radius);
+  background: var(--card); color: var(--link);
+  font: 700 14px/20px var(--cond); letter-spacing: .04em; text-transform: uppercase; white-space: nowrap; cursor: pointer;
+  transition: background-color .15s, border-color .15s;
+}
+.pbtn:hover { border-color: var(--primary); background: var(--primary-5); }
+.pbtn-primary { border-color: var(--primary); background: var(--primary); color: #fff; }
+.pbtn-primary:hover { border-color: var(--primary-hover); background: var(--primary-hover); }
+.pbtn:disabled, .pbtn:disabled:hover { border-color: transparent; background: rgba(0, 0, 0, .06); color: var(--ink-4); cursor: not-allowed; }
+
+.step-chip {
+  display: inline-flex; align-items: center; gap: 8px; max-width: min(640px, 100%);
+  margin: 0 0 8px; padding: 6px 16px 6px 10px; border-radius: 20px;
+  background: var(--card); box-shadow: 0 2px 8px rgba(0, 0, 0, .16);
+  font-size: 14px; line-height: 20px; color: var(--ink);
+}
+.step-chip .icon { color: var(--warn-icon); }
+.step-chip.is-ready .icon { color: var(--secondary-dark); }
+.step-chip.is-busy { color: var(--ink-2); }
+
+/* Вариант «прилипает»: полоса у низа окна, как у портала. Странице — отступ
+   под неё, боковой панели — место над ней. На узком экране полоса заняла
+   бы полэкрана, там она всегда в конце страницы. */
+@media (min-width: 901px) {
+  .checkout-fixed .checkout-wrap { position: fixed; z-index: 20; left: 0; right: 0; bottom: 0; pointer-events: none; }
+  .checkout-fixed .step-chip, .checkout-fixed .checkout { pointer-events: auto; }
+  .checkout-fixed .checkout { box-shadow: 0 -4px 16px rgba(0, 0, 0, .08); }
+  .checkout-fixed .page { padding-bottom: calc(var(--wrap-h, 0px) + 24px); }
+  html.checkout-fixed { scroll-padding-bottom: var(--wrap-h, 0px); }
+}
+@media (min-width: 1101px) {
+  .checkout-fixed .side-body { max-height: calc(100vh - 32px - var(--bar-h, 0px)); }
+}
 
 /* --- правая колонка ------------------------------------------------------- */
 
@@ -577,8 +632,6 @@ dialog::backdrop { background: rgba(0, 0, 0, .4); }
   .client-card { width: 100%; }
   /* «Заявка и ход работы» и «Новая заявка»: не влезли в ряд — каждая во всю ширину, а не лесенкой. */
   .page-actions > .btn { flex: 1 1 auto; }
-  .actions { justify-content: flex-start; margin-left: 0; }
-  .bar-cancel { margin-left: 0; }
 }
 
 @media (max-width: 760px) {
@@ -608,10 +661,14 @@ dialog::backdrop { background: rgba(0, 0, 0, .4); }
   .detail-body { padding: 4px 14px 16px; }
   .option { grid-template-columns: 20px minmax(0, 1fr); }
   .option-side { grid-column: 2; justify-content: space-between; }
-  .fact-text { white-space: normal; }
+  /* Полоса итога: кнопки во всю ширину рядами, итог под ними. */
+  .checkout-acts, .checkout-sums { width: 100%; }
+  .checkout-acts .pbtn { flex: 1 1 auto; }
+  .checkout-sums { margin-left: 0; }
+  .sum-text { white-space: normal; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .spinner { animation: none; border-top-color: var(--primary); }
-  .bar span, .btn, .side { transition: none; }
+  .bar span, .btn, .pbtn, .side { transition: none; }
 }

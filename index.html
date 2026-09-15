@@ -19,6 +19,13 @@
     <div class="container topbar-in">
       <p class="demo-note"><span class="demo-pill">Пробник</span>
         <span>Клиенты, цены и номера выдуманы — на портал и в 1С ничего не уходит.</span></p>
+      <!-- Временно (15.09.2026): полоса итога прилипает к низу окна, как на
+           портале, или стоит в конце страницы — выбирает владелец. -->
+      <div class="bar-pick" role="group" aria-label="Где стоит полоса итога">
+        <span>Полоса итога:</span>
+        <button type="button" data-bar="static" aria-pressed="true">в конце страницы</button>
+        <button type="button" data-bar="fixed" aria-pressed="false" title="На узком экране — всё равно в конце страницы">прилипает, как на портале</button>
+      </div>
       <div class="topbar-links" aria-hidden="true">
         <span>Техническая поддержка <svg class="icon icon-16" viewBox="0 0 24 24"><path d="M16.59 8.59 12 13.17 7.41 8.59 6 10l6 6 6-6z"/></svg></span>
         <span>Контакты <svg class="icon icon-16" viewBox="0 0 24 24"><path d="M16.59 8.59 12 13.17 7.41 8.59 6 10l6 6 6-6z"/></svg></span>
@@ -161,6 +168,13 @@
       </div>
     </aside>
   </div>
+</div>
+
+<!-- Итог и действия — полосой во всю ширину, как в корзине, КП и
+     спецификации портала; над ней плашка со следующим шагом. -->
+<div class="checkout-wrap" id="checkout-wrap" hidden>
+  <div class="container"><p class="step-chip" id="step-chip" aria-live="polite"></p></div>
+  <footer class="checkout" id="checkout" aria-label="Итог и оформление"></footer>
 </div>
 
 <dialog id="company-dialog" aria-labelledby="company-title">

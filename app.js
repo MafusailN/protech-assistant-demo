@@ -14,6 +14,9 @@
   const $ = (selector, root = document) => root.querySelector(selector);
   const main = $("#main");
   const logList = $("#log");
+  const checkoutWrap = $("#checkout-wrap");
+  const checkout = $("#checkout");
+  const stepChip = $("#step-chip");
 
   // Material Icons — тот же набор, что в шапке портала.
   const ICONS = {
@@ -35,6 +38,7 @@
     add: "M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z",
     target: "M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm8.94 3A8.994 8.994 0 0 0 13 3.06V1h-2v2.06A8.994 8.994 0 0 0 3.06 11H1v2h2.06A8.994 8.994 0 0 0 11 20.94V23h2v-2.06A8.994 8.994 0 0 0 20.94 13H23v-2h-2.06zM12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z",
     swap: "M6.99 11 3 15l3.99 4v-3H14v-2H6.99v-3zM21 9l-3.99-4v3H10v2h7.01v3L21 9z",
+    delete: "M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM8 9h8v10H8V9zm7.5-5-1-1h-5l-1 1H5v2h14V4z",
   };
   const icon = (name, cls = "") =>
     `<svg class="icon ${cls}" viewBox="0 0 24 24" aria-hidden="true"><path d="${ICONS[name]}"/></svg>`;
@@ -65,6 +69,7 @@
     invoice: null,
     intake: { text: "", file: null, error: "" },
     steps: [],
+    bar: "static",       // полоса итога: static — в конце страницы, fixed — прилипает к низу окна
   };
 
   // Боковая панель: свёрнута ли колонка (широкий экран, браузер помнит),
@@ -197,8 +202,11 @@
     else if (ui.view === "ordered") renderOrdered();
     else if (ui.view === "closed") renderClosed();
     else renderCard();
+    checkoutWrap.hidden = ui.view !== "card";
     $("#composer").querySelectorAll("button, textarea").forEach((el) => { el.disabled = ui.busy || !live(); });
-    if (ui.busy) main.querySelectorAll("button, input, textarea").forEach((el) => { el.disabled = true; });
+    if (ui.busy) {
+      [main, checkout].forEach((root) => root.querySelectorAll("button, input, textarea").forEach((el) => { el.disabled = true; }));
+    }
   }
 
   function renderClient() {
@@ -483,17 +491,17 @@
     if (ui.filter !== "all" && !card.counts[ui.filter]) ui.filter = "all";
     const rows = card.matches.filter((m) => ui.filter === "all" || m.mark === ui.filter);
     const from = card.source.kind === "file" ? `из файла ${card.source.fileName}` : "из текста заявки";
-    const onRequest = card.on_request.length
-      ? `<span class="total-note">без ${plural(card.on_request.length, "позиции", "позиций", "позиций")} по запросу</span>` : "";
-    const step = ui.busy
-      ? `<span class="spinner" aria-hidden="true"></span><span data-step>${esc(ui.step)}</span>`
-      : `${icon(card.ready ? "ok" : "attention", "icon-20")}<span>${esc(card.next_step || "Всё готово: проверьте клиента и оформляйте.")}</span>`;
-    const notes = card.warnings.length || card.removed.length
+    const comment = card.manager_comment
+      ? `<p class="note-comment">${icon("comment", "icon-20")}<span>Комментарий к заказу: ${esc(card.manager_comment)}</span></p>` : "";
+    const notes = card.warnings.length || card.removed.length || comment
       ? `<div class="notes">
           ${card.warnings.length ? `<ul class="warnings">${card.warnings.map((w) => `<li>${icon("info", "icon-20")}<span>${esc(w)}</span></li>`).join("")}</ul>` : ""}
+          ${comment}
           ${removedHtml(card)}
         </div>` : "";
 
+    // Отмена заявки — наверху листа, как «Очистить корзину» у портала:
+    // подальше от «Оформить заказ», который живёт в полосе итога.
     main.innerHTML = `
       <section class="sheet">
         <header class="sheet-head">
@@ -501,6 +509,7 @@
             <h2>Заявка №${card.request_id}</h2>
             <span class="caption">${plural(card.matches.length, "позиция", "позиции", "позиций")} ${esc(from)} · в корзине ${card.lines.length}</span>
             ${card.produced.length ? `<span class="produced">${icon("check", "icon-16")}Уже создано: ${esc(card.produced.join(", "))}</span>` : ""}
+            <button type="button" class="tool tool-danger" data-act="cancel">${icon("delete", "icon-18")}Отменить заявку</button>
           </div>
           <div class="chips" role="group" aria-label="Какие строки показать">${chipsHtml(card)}</div>
         </header>
@@ -514,28 +523,51 @@
           <tbody>${rows.map(rowHtml).join("")}</tbody>
         </table></div>
         ${notes}
-        <footer class="actionbar">
-          <div class="bar-row">
-            <div class="total"><span class="caption">Итого по корзине</span><span class="total-sum">${money(card.total)}</span>${onRequest}</div>
-            <div class="facts">
-              <p class="fact">${icon("truck", "icon-20")}<span class="fact-text${card.delivery_label ? "" : " fact-empty"}">${esc(card.delivery_label || "Способ получения не выбран")}</span>
-                <button type="button" class="link" data-act="delivery">${card.delivery_id ? "Изменить" : "Выбрать"}</button></p>
-              ${card.manager_comment ? `<p class="fact">${icon("comment", "icon-20")}<span class="fact-text">${esc(card.manager_comment)}</span></p>` : ""}
-            </div>
-            <button type="button" class="btn btn-danger btn-sm bar-cancel" data-act="cancel">Отменить заявку</button>
-          </div>
-          <div class="bar-row">
-            <p class="next-step${ui.busy ? " is-busy" : card.ready ? " is-ready" : ""}" aria-live="polite">${step}</p>
-            <div class="actions">
-              <button type="button" class="btn" data-act="keep"${card.lines.length ? "" : " disabled"}>Оставить в корзине</button>
-              <button type="button" class="btn" data-act="spec"${card.lines.length ? "" : " disabled"}>Спецификация</button>
-              <button type="button" class="btn" data-act="offer"${card.lines.length ? "" : " disabled"}>КП</button>
-              ${card.produced.length ? `<button type="button" class="btn" data-act="done">Готово, закрыть</button>` : ""}
-              <button type="button" class="btn btn-primary btn-lg" data-act="order"${card.ready ? "" : " disabled"}>Оформить заказ</button>
-            </div>
-          </div>
-        </footer>
       </section>`;
+    renderCheckout(card);
+  }
+
+  /**
+   * Итог и действия — полоса внизу во всю ширину, как в корзине, КП
+   * и спецификации портала: слева действия (оформить — залитая), справа
+   * «Итого с НДС». Над полосой — плашка со следующим шагом, как у портала
+   * «Рекомендуется замена в 2 строках», а пока идёт работа — с её ходом.
+   */
+  let chipHtml = "";
+  function renderCheckout(card) {
+    const html = ui.busy
+      ? `<span class="spinner" aria-hidden="true"></span><span data-step>${esc(ui.step)}</span>`
+      : `${icon(card.ready ? "ok" : "attention", "icon-20")}<span>${esc(card.next_step || "Всё готово: проверьте клиента и оформляйте.")}</span>`;
+    stepChip.className = `step-chip${ui.busy ? " is-busy" : card.ready ? " is-ready" : ""}`;
+    // Плашка — живая область для читалки: переписываем, только когда текст сменился.
+    if (html !== chipHtml) {
+      stepChip.innerHTML = html;
+      chipHtml = html;
+    }
+    const off = card.lines.length ? "" : " disabled";
+    const onRequest = card.on_request.length
+      ? `<div class="sum-col" title="В сумму не входят — цену поставят в 1С"><span class="caption">По запросу</span>
+          <span class="sum-value">${plural(card.on_request.length, "позиция", "позиции", "позиций")}${icon("info", "icon-16")}</span></div>` : "";
+    checkout.innerHTML = `
+      <div class="container checkout-in">
+        <div class="checkout-acts">
+          <button type="button" class="pbtn pbtn-primary" data-act="order" aria-describedby="step-chip"${card.ready ? "" : " disabled"}>Оформить заказ</button>
+          <button type="button" class="pbtn" data-act="spec"${off}>Спецификация</button>
+          <button type="button" class="pbtn" data-act="offer"${off}>КП</button>
+          <button type="button" class="pbtn" data-act="keep"${off}>Оставить в корзине</button>
+          ${card.produced.length ? `<button type="button" class="pbtn" data-act="done">Готово, закрыть</button>` : ""}
+        </div>
+        <div class="checkout-sums">
+          <div class="sum-col"><span class="caption">Получение</span>
+            <span class="sum-delivery"><span class="sum-text" title="${esc(card.delivery_label)}">${esc(card.delivery_label || "не выбрано")}</span>
+              <button type="button" class="link" data-act="delivery">${card.delivery_id ? "Изменить" : "Выбрать"}</button></span></div>
+          <div class="sum-group">
+            <span class="sum-label">Итого с НДС:</span>
+            <div class="sum-col"><span class="caption">Сумма</span><span class="sum-value sum-total">${money(card.total)}</span></div>
+            ${onRequest}
+          </div>
+        </div>
+      </div>`;
   }
 
   function renderIntake() {
@@ -719,6 +751,43 @@
   });
   // Экран стал шире или уже — выезжающая панель закрывается, колонка остаётся как была.
   narrow.addEventListener("change", () => { side.drawer = false; applySide(); });
+
+  // --- полоса итога: прилипает или в конце страницы ------------------------
+  //
+  // Временно (15.09.2026). У портала полоса итога прилипает к низу окна,
+  // а владелец прежде просил, чтобы итог за ним не ездил, — он выберет,
+  // посмотрев на оба. Вариант живёт в адресе (`?itog=fixed`), чтобы открыть
+  // их рядом во вкладках; невыбранный уйдёт вместе с переключателем.
+
+  function applyBar() {
+    document.documentElement.classList.toggle("checkout-fixed", ui.bar === "fixed");
+    document.querySelectorAll(".bar-pick [data-bar]").forEach((button) => {
+      button.setAttribute("aria-pressed", String(button.dataset.bar === ui.bar));
+    });
+  }
+
+  $(".bar-pick").addEventListener("click", (event) => {
+    const button = event.target.closest("[data-bar]");
+    if (!button) return;
+    ui.bar = button.dataset.bar;
+    try {
+      const url = new URL(window.location.href);
+      if (ui.bar === "fixed") url.searchParams.set("itog", "fixed");
+      else url.searchParams.delete("itog");
+      window.history.replaceState(null, "", url);
+    } catch {
+      // Открыто файлом — адрес не меняется, вид всё равно переключён.
+    }
+    applyBar();
+  });
+
+  // Высота полосы — в переменные: прилипшей полосе странице нужен отступ
+  // снизу, а боковой панели — место над ней.
+  new ResizeObserver(() => {
+    const root = document.documentElement.style;
+    root.setProperty("--wrap-h", `${checkoutWrap.offsetHeight}px`);
+    root.setProperty("--bar-h", `${checkout.offsetHeight}px`);
+  }).observe(checkoutWrap);
 
   // --- окна: клиент, доставка, заказ --------------------------------------
 
@@ -1001,17 +1070,22 @@
     },
   };
 
-  main.addEventListener("click", (event) => {
+  /** Нажатие на кнопку с `data-act` — в листе или в полосе итога. */
+  function act(event) {
     const button = event.target.closest("[data-act]");
+    if (!button || button.disabled) return false;
+    const detail = button.closest("tr.detail");
+    const number = detail ? Number(detail.previousElementSibling.dataset.number) : null;
+    actions[button.dataset.act](button, number);
+    return true;
+  }
+
+  main.addEventListener("click", (event) => {
+    if (act(event)) return;
     const row = event.target.closest("tr.row");
-    if (button && !button.disabled) {
-      const detail = button.closest("tr.detail");
-      const number = detail ? Number(detail.previousElementSibling.dataset.number) : null;
-      actions[button.dataset.act](button, number);
-      return;
-    }
     if (row && !ui.busy) toggleRow(Number(row.dataset.number));
   });
+  checkout.addEventListener("click", act);
 
   main.addEventListener("keydown", (event) => {
     const row = event.target.closest && event.target.closest("tr.row");
@@ -1112,6 +1186,8 @@
     side.collapsed = false;
   }
   applySide();
+  ui.bar = new URLSearchParams(window.location.search).get("itog") === "fixed" ? "fixed" : "static";
+  applyBar();
   const boot = api.boot();
   ui.card = boot.draft;
   say("Это пробник: заявка уже разобрана на выдуманных данных. Нажмите на строку с жёлтым, синим или красным значком, чтобы её решить.", "demo");
