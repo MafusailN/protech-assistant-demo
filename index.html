@@ -7,77 +7,136 @@
 <meta name="description" content="Пробник страницы-ассистента b2b-портала: заявка клиента превращается в корзину, спецификацию, КП или заказ.">
 <!-- Пробник публичный, но искать его незачем: данные выдуманы. -->
 <meta name="robots" content="noindex, nofollow">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Roboto+Condensed:wght@500;600;700&family=Roboto+Mono:wght@400;500&display=swap">
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 
-<p class="demo-ribbon">
-  <strong>Пробник.</strong> Клиенты, цены и номера выдуманы, на портал и в 1С ничего не уходит.
-  Нажимайте всё подряд — начать сначала можно кнопкой «Новая заявка».
-</p>
-
-<header class="topbar">
-  <div class="brand">
-    <span class="brand-name">Протэк</span>
-    <span class="brand-sub">Ассистент заявок</span>
+<!-- Каркас — как у b2b-портала: служебная полоса, меню разделов, поиск.
+     «Ассистент» стоит в меню новым разделом: так страница и появится
+     на портале. Остальные пункты в пробнике никуда не ведут. -->
+<header class="portal">
+  <div class="topbar">
+    <div class="container topbar-in">
+      <p class="demo-note"><span class="demo-pill">Пробник</span>
+        <span>Клиенты, цены и номера выдуманы — на портал и в 1С ничего не уходит.</span></p>
+      <div class="topbar-links" aria-hidden="true">
+        <span>Техническая поддержка <svg class="icon icon-16" viewBox="0 0 24 24"><path d="M16.59 8.59 12 13.17 7.41 8.59 6 10l6 6 6-6z"/></svg></span>
+        <span>Контакты <svg class="icon icon-16" viewBox="0 0 24 24"><path d="M16.59 8.59 12 13.17 7.41 8.59 6 10l6 6 6-6z"/></svg></span>
+      </div>
+    </div>
   </div>
 
-  <!-- Активная компания — состояние аккаунта на портале, и заказ уходит на неё.
-       Поэтому она крупно и всегда на виду, а не спрятана в профиль. -->
-  <button type="button" class="client" id="client-button" aria-haspopup="dialog">
-    <span class="client-label">Заказ уйдёт на</span>
-    <span class="client-name" id="client-name">—</span>
-    <span class="client-inn" id="client-inn"></span>
-    <span class="client-change">Сменить клиента</span>
-  </button>
+  <div class="navbar">
+    <div class="container navbar-in">
+      <a class="logo" href="#" data-portal aria-label="Протэк — на главную портала"><img src="img/logo.png" alt="Протэк" width="138" height="56"></a>
+      <nav class="nav" aria-label="Разделы портала">
+        <a href="#" data-portal>Товары</a>
+        <a href="#" data-portal>Мои КП</a>
+        <a href="#" data-portal>Заказы</a>
+        <a href="#" data-portal>Документы</a>
+        <a href="#" aria-current="page">Ассистент</a>
+      </nav>
+      <div class="nav-end">
+        <a class="nav-item" href="#" data-portal>
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 18c-1.1 0-1.99.9-1.99 2S5.9 22 7 22s2-.9 2-2-.9-2-2-2zM1 2v2h2l3.6 7.59-1.35 2.45c-.16.28-.25.61-.25.96 0 1.1.9 2 2 2h12v-2H7.42c-.14 0-.25-.11-.25-.25l.03-.12.9-1.63h7.45c.75 0 1.41-.41 1.75-1.03l3.58-6.49A1.003 1.003 0 0 0 20 4H5.21l-.94-2H1zm16 16c-1.1 0-1.99.9-1.99 2s.89 2 1.99 2 2-.9 2-2-.9-2-2-2z"/></svg>
+          <span>Корзина</span></a>
+        <!-- Активная компания — на месте выбора региона: это такое же состояние
+             аккаунта, общее для сайта и ассистента. -->
+        <button type="button" class="nav-item" id="client-button" aria-haspopup="dialog" title="Сменить клиента">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 7V3H2v18h20V7H12zM6 19H4v-2h2v2zm0-4H4v-2h2v2zm0-4H4V9h2v2zm0-4H4V5h2v2zm4 12H8v-2h2v2zm0-4H8v-2h2v2zm0-4H8V9h2v2zm0-4H8V5h2v2zm10 12h-8v-2h2v-2h-2v-2h2v-2h-2V9h8v10zm-2-8h-2v2h2v-2zm0 4h-2v2h2v-2z"/></svg>
+          <span class="company-name" id="client-name">—</span>
+        </button>
+        <a class="nav-icon" href="#" data-portal aria-label="Помощь">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H8c0-2.21 1.79-4 4-4s4 1.79 4 4c0 .88-.36 1.68-.93 2.25z"/></svg></a>
+        <span class="user-pill">Анна Демо</span>
+      </div>
+    </div>
+  </div>
 
-  <div class="topbar-end">
-    <button type="button" class="btn" id="new-request">Новая заявка</button>
-    <span class="who">Анна Демо, менеджер</span>
+  <div class="searchrow">
+    <div class="container">
+      <form class="search" role="search" id="portal-search-form">
+        <button type="button" class="search-catalog" data-portal>
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/></svg>
+          Каталог</button>
+        <span class="search-scope" aria-hidden="true">
+          <svg class="icon" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+          <svg class="icon icon-18" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z"/></svg></span>
+        <input type="search" id="portal-search" placeholder="Интеллектуальный поиск по названию, артикулу, категории, свойству, производителю" aria-label="Поиск по каталогу портала">
+      </form>
+    </div>
+  </div>
+
+  <div class="titlebar">
+    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
+    <span>Ассистент</span>
   </div>
 </header>
 
-<div class="workspace">
-  <aside class="rail" aria-label="Заявка клиента и ход работы">
-    <section class="rail-block">
-      <h2 class="label">Заявка клиента</h2>
-      <div id="source" class="source"></div>
-    </section>
+<div class="container page">
+  <div class="page-head">
+    <div class="page-title">
+      <h1>Ассистент заявок</h1>
+      <p class="page-sub" id="page-sub"></p>
+    </div>
+    <div class="page-actions">
+      <!-- Клиент заказа крупно: заказ уходит на активную компанию аккаунта. -->
+      <button type="button" class="client-card" id="client-card" aria-haspopup="dialog">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 7V3H2v18h20V7H12zM6 19H4v-2h2v2zm0-4H4v-2h2v2zm0-4H4V9h2v2zm0-4H4V5h2v2zm4 12H8v-2h2v2zm0-4H8v-2h2v2zm0-4H8V9h2v2zm0-4H8V5h2v2zm10 12h-8v-2h2v-2h-2v-2h2v-2h-2V9h8v10zm-2-8h-2v2h2v-2zm0 4h-2v2h2v-2z"/></svg>
+        <span class="client-text">
+          <span class="client-label">Заказ уйдёт на</span>
+          <span class="client-name" id="client-card-name">—</span>
+          <span class="client-inn" id="client-inn"></span>
+        </span>
+        <span class="client-change">Сменить</span>
+      </button>
+      <button type="button" class="btn btn-primary btn-lg" id="new-request">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+        Новая заявка</button>
+    </div>
+  </div>
 
-    <section class="rail-block rail-log">
-      <h2 class="label">Ход работы</h2>
-      <ol id="log" class="log" aria-live="polite"></ol>
-    </section>
+  <div class="workspace">
+    <main class="main" id="main"></main>
 
-    <form class="rail-block composer" id="composer">
-      <label class="label" for="composer-text">Дослать позиции в эту заявку</label>
-      <textarea id="composer-text" rows="3" placeholder="Клиент что-то дописал — вставьте сюда, прежний подбор не пропадёт"></textarea>
-      <div class="composer-row">
-        <button type="button" class="link" id="composer-sample">Вставить пример</button>
-        <button type="submit" class="btn btn-small" id="composer-send">Добавить в заявку</button>
-      </div>
-    </form>
-  </aside>
+    <aside class="side" aria-label="Заявка клиента и ход работы">
+      <section class="side-card">
+        <h2 class="side-title">Заявка клиента</h2>
+        <div id="source" class="source"></div>
+      </section>
 
-  <main class="main" id="main"></main>
+      <section class="side-card side-log">
+        <h2 class="side-title">Ход работы</h2>
+        <ol id="log" class="log" aria-live="polite"></ol>
+      </section>
+
+      <form class="side-card composer" id="composer">
+        <label class="side-title" for="composer-text">Дослать позиции</label>
+        <textarea id="composer-text" rows="3" placeholder="Клиент дописал — вставьте сюда, прежний подбор не пропадёт"></textarea>
+        <div class="composer-row">
+          <button type="button" class="link" id="composer-sample">Вставить пример</button>
+          <button type="submit" class="btn btn-sm" id="composer-send">Добавить в заявку</button>
+        </div>
+      </form>
+    </aside>
+  </div>
 </div>
 
 <dialog id="company-dialog" aria-labelledby="company-title">
   <form method="dialog" class="dialog" id="company-form">
     <header class="dialog-head">
       <h2 id="company-title">Сменить клиента</h2>
-      <p>Клиент меняется и на сайте портала: активная компания у аккаунта одна. Подбор останется, корзина пересоберётся по его ценам.</p>
+      <p>Клиент меняется и на сайте портала: активная компания у аккаунта одна. Подбор останется, корзина пересоберётся по ценам клиента.</p>
     </header>
     <div class="dialog-body">
-      <label class="label" for="company-query">Название или ИНН</label>
-      <input type="search" id="company-query" autocomplete="off" placeholder="например, «Демо» или 7000000002">
+      <div class="field">
+        <label class="label" for="company-query">Название или ИНН</label>
+        <input type="search" id="company-query" autocomplete="off" placeholder="например, «Демо» или 7000000002">
+      </div>
       <ul class="company-list" id="company-list"></ul>
     </div>
     <footer class="dialog-foot">
-      <button type="submit" class="btn" value="cancel">Закрыть</button>
+      <button type="submit" class="btn btn-ghost" value="cancel">Закрыть</button>
     </footer>
   </form>
 </dialog>
@@ -90,22 +149,22 @@
     </header>
     <div class="dialog-body" id="delivery-options"></div>
     <footer class="dialog-foot">
-      <button type="submit" class="btn" value="cancel">Отмена</button>
+      <button type="submit" class="btn btn-ghost" value="cancel">Отмена</button>
       <button type="button" class="btn btn-primary" id="delivery-apply">Выбрать</button>
     </footer>
   </form>
 </dialog>
 
-<dialog id="order-dialog" aria-labelledby="order-title">
-  <form method="dialog" class="dialog dialog-wide" id="order-form">
+<dialog id="order-dialog" class="wide" aria-labelledby="order-title">
+  <form method="dialog" class="dialog" id="order-form">
     <header class="dialog-head">
       <h2 id="order-title">Оформление заказа</h2>
-      <p>Проверьте клиента: заказ сразу уходит в 1С, и отменить его отсюда нельзя.</p>
+      <p>Заказ сразу уходит в 1С, и отменить его отсюда нельзя. Проверьте клиента.</p>
     </header>
     <div class="dialog-body" id="order-body"></div>
     <footer class="dialog-foot">
-      <button type="submit" class="btn" value="cancel">Вернуться к заявке</button>
-      <button type="button" class="btn btn-go" id="order-place">Оформить заказ</button>
+      <button type="submit" class="btn btn-ghost" value="cancel">Вернуться к заявке</button>
+      <button type="button" class="btn btn-primary btn-lg" id="order-place">Оформить заказ</button>
     </footer>
   </form>
 </dialog>
