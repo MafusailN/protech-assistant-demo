@@ -90,34 +90,75 @@
         </span>
         <span class="client-change">Сменить</span>
       </button>
+      <!-- На узком экране боковая панель выезжает по этой кнопке, на широком
+           её заменяет полоса справа. -->
+      <button type="button" class="btn side-open with-busy" id="side-open" data-side-show="" data-side-toggle
+              aria-controls="side-body" aria-expanded="false">
+        <svg class="icon icon-20" viewBox="0 0 24 24" aria-hidden="true"><path d="M13 3a9 9 0 0 0-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42A8.954 8.954 0 0 0 13 21a9 9 0 0 0 0-18zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/></svg>
+        <span class="spinner" aria-hidden="true"></span>
+        Заявка и ход работы
+        <span class="badge" data-unread hidden></span></button>
       <button type="button" class="btn btn-primary btn-lg" id="new-request">
         <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
         Новая заявка</button>
     </div>
   </div>
 
-  <div class="workspace">
+  <div class="workspace" id="workspace">
     <main class="main" id="main"></main>
 
+    <!-- Заявка клиента, ход работы и дописка. На широком экране — колонка
+         справа, которая сворачивается в узкую полосу: таблице нужна ширина
+         (решение владельца 15.09.2026). На узком — выезжает поверх страницы. -->
+    <div class="side-scrim" id="side-scrim"></div>
     <aside class="side" aria-label="Заявка клиента и ход работы">
-      <section class="side-card">
-        <h2 class="side-title">Заявка клиента</h2>
-        <div id="source" class="source"></div>
-      </section>
+      <div class="rail">
+        <button type="button" class="rail-btn rail-toggle" id="rail-toggle" data-side-show="" data-side-toggle
+                aria-controls="side-body" aria-expanded="false" aria-label="Развернуть панель" title="Развернуть панель">
+          <svg class="icon icon-20" viewBox="0 0 24 24" aria-hidden="true"><path d="M17.59 18 19 16.59 14.42 12 19 7.41 17.59 6l-6 6zM11 18l1.41-1.41L7.83 12l4.58-4.59L11 6l-6 6z"/></svg>
+        </button>
+        <button type="button" class="rail-btn" data-side-show="source">
+          <svg class="icon icon-20" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>
+          <span class="rail-label">Заявка клиента</span>
+        </button>
+        <button type="button" class="rail-btn with-busy" data-side-show="log">
+          <svg class="icon icon-20" viewBox="0 0 24 24" aria-hidden="true"><path d="M13 3a9 9 0 0 0-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42A8.954 8.954 0 0 0 13 21a9 9 0 0 0 0-18zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/></svg>
+          <span class="spinner" aria-hidden="true"></span>
+          <span class="rail-label">Ход работы</span>
+          <span class="badge" data-unread hidden></span>
+        </button>
+        <button type="button" class="rail-btn" data-side-show="composer">
+          <svg class="icon icon-20" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 10H2v2h12v-2zm0-4H2v2h12V6zm4 8v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zM2 16h8v-2H2v2z"/></svg>
+          <span class="rail-label">Дослать позиции</span>
+        </button>
+      </div>
 
-      <section class="side-card side-log">
-        <h2 class="side-title">Ход работы</h2>
-        <ol id="log" class="log" aria-live="polite"></ol>
-      </section>
-
-      <form class="side-card composer" id="composer">
-        <label class="side-title" for="composer-text">Дослать позиции</label>
-        <textarea id="composer-text" rows="3" placeholder="Клиент дописал — вставьте сюда, прежний подбор не пропадёт"></textarea>
-        <div class="composer-row">
-          <button type="button" class="link" id="composer-sample">Вставить пример</button>
-          <button type="submit" class="btn btn-sm" id="composer-send">Добавить в заявку</button>
+      <div class="side-body" id="side-body">
+        <div class="side-head">
+          <button type="button" class="btn btn-ghost btn-sm" id="side-hide" data-side-toggle
+                  aria-controls="side-body" aria-expanded="true">Свернуть панель
+            <svg class="icon icon-18" viewBox="0 0 24 24" aria-hidden="true"><path d="M6.41 6 5 7.41 9.58 12 5 16.59 6.41 18l6-6zM13 6l-1.41 1.41L16.17 12l-4.58 4.59L13 18l6-6z"/></svg></button>
         </div>
-      </form>
+
+        <section class="side-card">
+          <h2 class="side-title" id="side-source-title" tabindex="-1">Заявка клиента</h2>
+          <div id="source" class="source"></div>
+        </section>
+
+        <section class="side-card side-log">
+          <h2 class="side-title" id="side-log-title" tabindex="-1">Ход работы</h2>
+          <ol id="log" class="log" aria-live="polite"></ol>
+        </section>
+
+        <form class="side-card composer" id="composer">
+          <label class="side-title" for="composer-text">Дослать позиции</label>
+          <textarea id="composer-text" rows="3" placeholder="Клиент дописал — вставьте сюда, прежний подбор не пропадёт"></textarea>
+          <div class="composer-row">
+            <button type="button" class="link" id="composer-sample">Вставить пример</button>
+            <button type="submit" class="btn btn-sm" id="composer-send">Добавить в заявку</button>
+          </div>
+        </form>
+      </div>
     </aside>
   </div>
 </div>

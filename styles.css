@@ -252,7 +252,7 @@ table.lines { width: 100%; border-collapse: separate; border-spacing: 0; font-si
 .lines tr.row:hover > td { background: var(--primary-5); }
 .lines tr.row[aria-expanded="true"] > td { background: var(--primary-5); border-bottom-color: transparent; }
 .lines tr.row > td:first-child { box-shadow: inset 3px 0 0 var(--stripe, transparent); }
-/* Раскрытая строка встаёт к верху экрана, а не под панель действий внизу листа. */
+/* Раскрытая строка встаёт к верху экрана: под ней раскрывается решение. */
 .lines tr.row { scroll-margin-top: 16px; }
 /* У «решается здесь» полосы нет: жёлтым на странице остаётся только значок
    (решение владельца 15.09.2026). Синяя и красная полосы — как были. */
@@ -335,6 +335,8 @@ table.lines { width: 100%; border-collapse: separate; border-spacing: 0; font-si
 .hint { font-size: 13px; line-height: 18px; color: var(--ink-3); }
 .detail-foot { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px 16px; }
 .ways { display: flex; flex-wrap: wrap; gap: 4px 18px; }
+/* Ход работы — там, где нажали: панель итога в конце листа может быть не видна. */
+.busy-line { display: inline-flex; align-items: center; gap: 8px; min-height: 30px; font-size: 14px; line-height: 20px; color: var(--ink-2); }
 
 /* --- низ листа: не вошло, предупреждения, действия ------------------------ */
 
@@ -349,13 +351,15 @@ table.lines { width: 100%; border-collapse: separate; border-spacing: 0; font-si
 .removed ul { margin: 0; padding-left: 20px; font-size: 14px; line-height: 20px; color: var(--ink-2); }
 
 /* Две строки: наверху итог, доставка и отмена заявки — подальше от
-   «Оформить»; внизу подсказка о следующем шаге и действия. */
+   «Оформить»; внизу подсказка о следующем шаге и действия. Панель стоит
+   в конце листа и за прокруткой не едет (решение владельца 15.09.2026):
+   прилипшая к низу экрана, она ездила за менеджером и закрывала строки.
+   Поэтому ход долгой работы виден ещё у раскрытой строки и в «Ходе работы». */
 .actionbar {
-  position: sticky; bottom: 0; z-index: 2;
   display: flex; flex-direction: column; gap: 10px;
   padding: 12px 16px 14px; border-top: 1px solid var(--line);
   border-radius: 0 0 var(--radius-card) var(--radius-card);
-  background: var(--card); box-shadow: 0 -8px 16px -12px rgba(0, 0, 0, .18);
+  background: var(--card);
 }
 .bar-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 28px; }
 .bar-cancel { margin-left: auto; }
@@ -380,9 +384,42 @@ table.lines { width: 100%; border-collapse: separate; border-spacing: 0; font-si
 
 /* --- правая колонка ------------------------------------------------------- */
 
-.side {
-  position: sticky; top: 16px; max-height: calc(100vh - 32px);
-  display: flex; flex-direction: column; gap: 16px;
+/* Заявка клиента, ход работы и дописка. Колонка сворачивается в узкую
+   полосу (`.rail`): таблице нужна ширина (решение владельца 15.09.2026).
+   На узком экране панель выезжает поверх страницы — см. «узкий экран». */
+.side { position: sticky; top: 16px; }
+.side-body { display: flex; flex-direction: column; gap: 16px; max-height: calc(100vh - 32px); }
+.side-head { display: flex; justify-content: flex-end; margin-bottom: -8px; }
+.side-scrim, .side-open, .rail { display: none; }
+
+.rail { flex-direction: column; gap: 2px; padding: 4px; border-radius: var(--radius-card); background: var(--card); }
+.rail-btn {
+  position: relative; display: flex; flex-direction: column; align-items: center; gap: 8px;
+  padding: 10px 0 12px; border: 0; border-radius: 8px; background: none;
+  color: var(--ink-2); font: 400 14px/20px var(--cond); cursor: pointer;
+}
+.rail-btn:hover { background: var(--primary-5); color: var(--primary); }
+.rail-toggle { margin-bottom: 4px; padding-block: 8px; border-bottom: 1px solid var(--line); border-radius: 8px 8px 0 0; color: var(--link); }
+.rail-label { writing-mode: vertical-rl; white-space: nowrap; }
+
+/* Сколько записей хода работы пришло, пока панель скрыта; красный — среди них ошибка. */
+.badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9999px;
+  background: var(--primary); color: #fff; font: 700 11px/18px var(--font); font-variant-numeric: tabular-nums;
+}
+.badge.is-alarm { background: var(--error); }
+.rail .badge { position: absolute; top: 2px; right: 0; }
+
+/* Пока идёт работа, значок хода работы сменяется крутилкой. */
+.with-busy > .spinner { display: none; }
+.is-busy .with-busy > .spinner { display: inline-block; }
+.is-busy .with-busy > .icon { display: none; }
+
+@media (min-width: 1101px) {
+  .workspace.side-collapsed { grid-template-columns: minmax(0, 1fr) 44px; }
+  .side-collapsed .side-body { display: none; }
+  .side-collapsed .rail { display: flex; }
 }
 .side-card { display: flex; flex-direction: column; gap: 10px; padding: 16px; border-radius: var(--radius-card); background: var(--card); }
 .side-title { font: 700 16px/22px var(--cond); }
@@ -410,6 +447,8 @@ table.lines { width: 100%; border-collapse: separate; border-spacing: 0; font-si
 .log .t-error .icon { color: var(--error); }
 .log .t-demo { color: var(--ink-2); }
 .log .t-demo .icon { color: var(--warn-icon); }
+.log .t-busy { color: var(--ink); }
+.log .spinner { margin-top: 1px; }
 .log time { display: block; font-size: 12px; line-height: 16px; color: var(--ink-4); }
 
 .composer-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
@@ -509,8 +548,20 @@ dialog::backdrop { background: rgba(0, 0, 0, .4); }
 
 @media (max-width: 1100px) {
   .workspace { grid-template-columns: 1fr; }
-  .side { position: static; max-height: none; }
-  .log { max-height: 320px; }
+  /* Панель выезжает справа поверх страницы. Закрытая — невидима и фокус не ловит. */
+  .side {
+    position: fixed; z-index: 30; inset: 0 0 0 auto;
+    width: min(380px, calc(100vw - 40px)); padding: 16px;
+    overflow-y: auto; overscroll-behavior: contain;
+    background: var(--surface); box-shadow: -12px 0 32px rgba(0, 0, 0, .2);
+    transform: translateX(100%); visibility: hidden;
+    transition: transform .2s ease, visibility 0s linear .2s;
+  }
+  .drawer-open .side { transform: none; visibility: visible; transition: transform .2s ease; }
+  .drawer-open .side-scrim { display: block; position: fixed; inset: 0; z-index: 29; background: rgba(0, 0, 0, .4); }
+  .side-body { height: 100%; max-height: none; }
+  .side-open { display: inline-flex; min-height: 44px; }
+  .side-open .badge { margin-left: 2px; }
 }
 
 @media (max-width: 900px) {
@@ -524,10 +575,10 @@ dialog::backdrop { background: rgba(0, 0, 0, .4); }
   .container { padding-inline: 16px; }
   .page-head { align-items: stretch; }
   .client-card { width: 100%; }
+  /* «Заявка и ход работы» и «Новая заявка»: не влезли в ряд — каждая во всю ширину, а не лесенкой. */
+  .page-actions > .btn { flex: 1 1 auto; }
   .actions { justify-content: flex-start; margin-left: 0; }
   .bar-cancel { margin-left: 0; }
-  /* На телефоне прилипшая панель закрыла бы полэкрана — пусть стоит в конце листа. */
-  .actionbar { position: static; box-shadow: none; }
 }
 
 @media (max-width: 760px) {
@@ -562,5 +613,5 @@ dialog::backdrop { background: rgba(0, 0, 0, .4); }
 
 @media (prefers-reduced-motion: reduce) {
   .spinner { animation: none; border-top-color: var(--primary); }
-  .bar span, .btn { transition: none; }
+  .bar span, .btn, .side { transition: none; }
 }

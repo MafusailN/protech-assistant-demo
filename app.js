@@ -67,6 +67,11 @@
     steps: [],
   };
 
+  // Боковая панель: свёрнута ли колонка (широкий экран, браузер помнит),
+  // открыта ли выезжающая (узкий), сколько записей хода работы пришло,
+  // пока панель скрыта, и есть ли среди них ошибка.
+  const side = { collapsed: false, drawer: false, unread: 0, alarm: false };
+
   // --- мелочи ------------------------------------------------------------
 
   const esc = (value) => String(value ?? "").replace(/[&<>"']/g, (ch) => (
@@ -91,24 +96,57 @@
 
   function log(entries) {
     const now = new Date().toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
+    // Строка текущей работы (`working`) остаётся последней.
+    const busy = $("#log-busy");
     for (const entry of entries || []) {
       const tone = entry.tone || "plain";
       const item = document.createElement("li");
       item.className = `t-${tone}`;
       item.innerHTML = `${icon(LOG_ICON[tone] || "dot", "icon-18")}<div><time>${now}</time>${esc(entry.text)}</div>`;
-      logList.append(item);
+      logList.insertBefore(item, busy);
     }
     while (logList.children.length > 60) logList.firstElementChild.remove();
     // Прокручивается сам список, а не страница: иначе каждая запись уводила
     // бы экран прочь от строки, с которой работает менеджер.
     logList.scrollTop = logList.scrollHeight;
+    // Панель скрыта — сказанное считается на значке, чтобы не прошло мимо.
+    const fresh = entries || [];
+    if (fresh.length && !sideShown()) {
+      side.unread += fresh.length;
+      if (fresh.some((entry) => entry.tone === "error")) side.alarm = true;
+      renderUnread();
+    }
   }
   const say = (text, tone) => log([{ text, tone }]);
 
+  /**
+   * Ход долгой работы — последней строкой журнала, как служебное сообщение
+   * `_Working` в боте: по окончании её сменяет сказанное. Панель итога
+   * стоит в конце листа и может быть не видна, а журнал — на экране.
+   * Читалке строка не нужна: ход уже проговаривает подсказка в панели итога.
+   */
+  function working(on) {
+    let item = $("#log-busy");
+    if (!on) {
+      if (item) item.remove();
+      return;
+    }
+    if (!item) {
+      item = document.createElement("li");
+      item.id = "log-busy";
+      item.className = "t-busy";
+      item.setAttribute("aria-hidden", "true");
+      item.innerHTML = `<span class="spinner"></span><div data-step></div>`;
+      logList.append(item);
+    }
+    item.lastElementChild.textContent = ui.step;
+    logList.scrollTop = logList.scrollHeight;
+  }
+
+  /** Ход работы пишется во все места, где он сейчас показан (`data-step`). */
   function setStep(text) {
     ui.step = text;
-    const slot = $("#work-text");
-    if (slot && ui.busy) slot.textContent = text;
+    if (ui.busy) document.querySelectorAll("[data-step]").forEach((el) => { el.textContent = text; });
     if (ui.view === "parsing") renderSteps(text);
   }
 
@@ -121,6 +159,7 @@
     ui.error = null;
     ui.step = "Работаю…";
     render();
+    working(true);
     try {
       const result = await call();
       if (result && result.draft) ui.card = result.draft;
@@ -131,6 +170,7 @@
       ui.error = { number: ui.open, text: error.message };
       say(error.message, "error");
     } finally {
+      working(false);
       ui.busy = false;
       render();
       // Сменился экран (заказ оформлен, заявка закрыта) — показываем его с начала.
@@ -149,6 +189,7 @@
   // --- отрисовка ---------------------------------------------------------
 
   function render() {
+    document.body.classList.toggle("is-busy", ui.busy);
     renderClient();
     renderSource();
     if (ui.view === "intake") renderIntake();
@@ -217,6 +258,10 @@
 
   const todo = (kind, text) =>
     `<div class="todo-row"><span class="todo todo-${kind}">${icon(kind, "icon-18")}${esc(text)}</span></div>`;
+
+  /** Ход работы у строки, где нажали: панель итога в конце листа может быть не видна. */
+  const busyLine = () =>
+    `<span class="busy-line"><span class="spinner" aria-hidden="true"></span><span data-step>${esc(ui.step)}</span></span>`;
 
   function rowHtml(match) {
     const open = ui.open === match.number;
@@ -315,10 +360,10 @@
     const id = esc(candidate.id);
     return `<div class="ask" role="group" aria-label="Тот самый товар или замена" tabindex="-1">
       <p class="ask-q">Это тот самый товар или замена?</p>
-      <div class="ask-acts">
+      <div class="ask-acts">${ui.busy ? busyLine() : `
         <button type="button" class="btn btn-sm" data-act="answer" data-id="${id}" data-analog="false">${icon("target", "icon-18")} Тот самый</button>
         <button type="button" class="btn btn-sm" data-act="answer" data-id="${id}" data-analog="true">${icon("swap", "icon-18")} Аналог</button>
-        <button type="button" class="link" data-act="unask">Отмена</button>
+        <button type="button" class="link" data-act="unask">Отмена</button>`}
       </div>
       <p class="hint">«Тот самый» — клиент просил именно его: запомню, и у этого клиента в следующий раз подставлю сам. «Аналог» — подойдёт вместо исходного: запомню как замену и в следующий раз спрошу снова.</p>
     </div>`;
@@ -397,12 +442,14 @@
     }
     const error = ui.error && ui.error.number === match.number
       ? `<p class="form-error" role="alert">${icon("missing", "icon-18")}${esc(ui.error.text)}</p>` : "";
+    // Идёт работа — её ход на месте ссылок, а если ответили на вопрос «тот самый или аналог» — в самом вопросе.
+    const foot = ui.busy && !ui.ask[match.number] ? busyLine() : ways.join("");
 
     return `<div class="detail-body">
       <div class="detail-facts">${facts.join("")}</div>
       ${body}${error}
       <div class="detail-foot">
-        <div class="ways">${ways.join("")}</div>
+        <div class="ways">${foot}</div>
         <div class="ways">
           <button type="button" class="btn btn-danger btn-sm" data-act="remove">Отменить строку</button>
           <button type="button" class="btn btn-ghost btn-sm" data-act="close">Свернуть</button>
@@ -439,8 +486,8 @@
     const onRequest = card.on_request.length
       ? `<span class="total-note">без ${plural(card.on_request.length, "позиции", "позиций", "позиций")} по запросу</span>` : "";
     const step = ui.busy
-      ? `<span class="spinner" aria-hidden="true"></span><span id="work-text">${esc(ui.step)}</span>`
-      : `${icon(card.ready ? "ok" : "attention", "icon-20")}<span id="work-text">${esc(card.next_step || "Всё готово: проверьте клиента и оформляйте.")}</span>`;
+      ? `<span class="spinner" aria-hidden="true"></span><span data-step>${esc(ui.step)}</span>`
+      : `${icon(card.ready ? "ok" : "attention", "icon-20")}<span>${esc(card.next_step || "Всё готово: проверьте клиента и оформляйте.")}</span>`;
     const notes = card.warnings.length || card.removed.length
       ? `<div class="notes">
           ${card.warnings.length ? `<ul class="warnings">${card.warnings.map((w) => `<li>${icon("info", "icon-20")}<span>${esc(w)}</span></li>`).join("")}</ul>` : ""}
@@ -601,6 +648,78 @@
       </section>`;
   }
 
+  // --- боковая панель: заявка клиента, ход работы, дописка ----------------
+
+  const workspace = $("#workspace");
+  // Та же граница, что в styles.css: уже неё панель выезжает поверх страницы.
+  const narrow = window.matchMedia("(max-width: 1100px)");
+  const SIDE_KEY = "protek-assistant:side";
+
+  const sideShown = () => (narrow.matches ? side.drawer : !side.collapsed);
+
+  function applySide() {
+    workspace.classList.toggle("side-collapsed", side.collapsed);
+    workspace.classList.toggle("drawer-open", side.drawer);
+    const shown = sideShown();
+    document.querySelectorAll("[data-side-toggle]").forEach((el) => el.setAttribute("aria-expanded", String(shown)));
+    if (shown) {
+      side.unread = 0;
+      side.alarm = false;
+      // Скрытый список не прокручивался — догоняем его до последней записи.
+      logList.scrollTop = logList.scrollHeight;
+    }
+    renderUnread();
+  }
+
+  function renderUnread() {
+    document.querySelectorAll("[data-unread]").forEach((badge) => {
+      badge.hidden = !side.unread;
+      badge.textContent = side.unread > 99 ? "99+" : String(side.unread);
+      badge.classList.toggle("is-alarm", side.alarm);
+    });
+  }
+
+  function rememberSide() {
+    try {
+      localStorage.setItem(SIDE_KEY, side.collapsed ? "collapsed" : "open");
+    } catch {
+      // Браузер не даёт хранить — в следующий раз панель откроется развёрнутой.
+    }
+  }
+
+  /** Показать панель; `target` — к чему вести: source | log | composer. */
+  function showSide(target) {
+    if (narrow.matches) side.drawer = true;
+    else { side.collapsed = false; rememberSide(); }
+    applySide();
+    const field = $("#composer-text");
+    const into = target === "composer" && !field.disabled ? field
+      : target === "log" ? $("#side-log-title")
+      : target === "source" ? $("#side-source-title")
+      : $("#side-hide");
+    into.focus();
+  }
+
+  function hideSide() {
+    if (narrow.matches) side.drawer = false;
+    else { side.collapsed = true; rememberSide(); }
+    applySide();
+    // Фокус — на кнопку, которой панель открывают обратно.
+    $(narrow.matches ? "#side-open" : "#rail-toggle").focus();
+  }
+
+  document.querySelectorAll("[data-side-show]").forEach((el) => {
+    el.addEventListener("click", () => showSide(el.dataset.sideShow));
+  });
+  $("#side-hide").addEventListener("click", hideSide);
+  $("#side-scrim").addEventListener("click", hideSide);
+  document.addEventListener("keydown", (event) => {
+    // Выезжающую панель закрывает Escape; открытое окно он закрывает сам.
+    if (event.key === "Escape" && narrow.matches && side.drawer && !document.querySelector("dialog[open]")) hideSide();
+  });
+  // Экран стал шире или уже — выезжающая панель закрывается, колонка остаётся как была.
+  narrow.addEventListener("change", () => { side.drawer = false; applySide(); });
+
   // --- окна: клиент, доставка, заказ --------------------------------------
 
   const companyDialog = $("#company-dialog");
@@ -758,8 +877,11 @@
     if (live()) {
       const ok = window.confirm(
         `Заявка №${ui.card.request_id} ещё не оформлена. Отменить её и начать новую? Корзина на портале очистится.\n\n` +
-        "Если клиент просто дописал позиции — нажмите «Отмена» и вставьте их в «Дослать позиции» справа.");
-      if (!ok) return;
+        "Если клиент просто дописал позиции — нажмите «Отмена»: открою «Дослать позиции».");
+      if (!ok) {
+        showSide("composer");
+        return;
+      }
       await run(() => api.cancel(setStep));
     }
     Object.assign(ui, { view: "intake", open: null, mode: {}, ask: {}, found: {}, filter: "all", files: [], invoice: null, error: null });
@@ -908,7 +1030,7 @@
     if (ui.open != null) revealRow(ui.open);
   }
 
-  /** Строку — к верху экрана: под ней раскрытая часть, а низ листа закрывает панель действий. */
+  /** Строку — к верху экрана: под ней раскрытая часть. */
   function revealRow(number) {
     const row = main.querySelector(`tr.row[data-number="${number}"]`);
     if (!row) return;
@@ -984,6 +1106,12 @@
   // --- старт: заявка уже разобрана, чтобы было на что смотреть -------------
 
   $("#page-sub").textContent = "Заявка клиента → корзина на портале, спецификация, КП или заказ";
+  try {
+    side.collapsed = localStorage.getItem(SIDE_KEY) === "collapsed";
+  } catch {
+    side.collapsed = false;
+  }
+  applySide();
   const boot = api.boot();
   ui.card = boot.draft;
   say("Это пробник: заявка уже разобрана на выдуманных данных. Нажмите на строку с жёлтым, синим или красным значком, чтобы её решить.", "demo");
