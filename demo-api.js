@@ -389,9 +389,10 @@
       Object.assign(m, { confidence: "likely", confirmed: true, hand_picked: true, analog });
       m.reason = analog ? "выбран менеджером как аналог" : "выбран менеджером";
       await rebuild(onStep, true);
+      // Что записано — словами и в обоих случаях, как в боте.
       const out = [said(analog
-        ? `Строка ${number}: взял как аналог «${label(m.chosen)}». Запомню как замену, а не как тот самый товар — в следующей заявке спрошу снова.`
-        : `Строка ${number}: взял «${label(m.chosen)}».`, "good")];
+        ? `Строка ${number}: записал «${label(m.chosen)}» как замену (аналог) — в следующий раз предложу, но спрошу снова.`
+        : `Строка ${number}: записал «${label(m.chosen)}» как тот самый товар — у этого клиента в следующий раз подставлю сам.`, "good")];
       if (!qtyKnown(m.position)) out.push(said(`Строка ${number}: осталось задать количество.`, "warn"));
       return { draft: view(), said: [...out, ...adjustedSaid([number])] };
     },
@@ -423,7 +424,12 @@
       return { draft: view(), said: [said(`Строка ${number}: портал ответил — нашлась «${label(m.chosen)}».`, "good")] };
     },
 
-    async byLink(number, url, onStep = quiet) {
+    /**
+     * Товар по ссылке: только найти и поставить в варианты строки. Тот самый
+     * он или замена, решает ответ менеджера на вопрос — дальше обычный `pick`.
+     * Раньше найденное бралось аналогом без спроса; бот так не делает.
+     */
+    async findByLink(number, url, onStep = quiet) {
       requireDraft();
       const m = find(number);
       const text = (url || "").trim();
@@ -432,15 +438,11 @@
       }
       onStep("Открываю товар по ссылке…");
       await wait(700);
-      m.chosen = cand(m.demo_link || "p-shield");
-      m.alternatives = [cand(m.chosen.id)];
-      Object.assign(m, { confidence: "likely", confirmed: true, hand_picked: true, analog: true,
-                         reason: "указан ссылкой как замена" });
-      await rebuild(onStep, true);
+      const found = cand(m.demo_link || "p-shield");
+      if (!m.alternatives.some((c) => c.id === found.id)) m.alternatives.push(found);
       return {
-        draft: view(),
-        said: [said(`Строка ${number}: по ссылке нашёл «${label(m.chosen)}». Беру как аналог — ` +
-                    "товара из заявки на портале нет. В следующий раз предложу эту замену, но молча не подставлю.", "good")],
+        draft: view(), found_id: found.id,
+        said: [said(`Строка ${number}: по ссылке нашёл «${label(found)}». Тот самый это товар или замена?`)],
       };
     },
 

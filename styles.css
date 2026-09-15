@@ -313,6 +313,16 @@ table.lines { width: 100%; border-collapse: separate; border-spacing: 0; font-si
 .option-side { display: flex; align-items: center; gap: 14px; }
 .option-price { font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
 
+/* Вопрос «тот самый или аналог» раскрывается под выбранным товаром. */
+.option.is-asking { border-color: var(--primary); box-shadow: inset 0 0 0 1px var(--primary); }
+.ask {
+  grid-column: 1 / -1; display: flex; flex-direction: column; gap: 8px;
+  margin-top: 6px; padding-top: 12px; border-top: 1px solid var(--line);
+}
+.ask:focus { outline: none; }
+.ask-q { font-weight: 700; }
+.ask-acts { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+
 .inline-form { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px; }
 .inline-form .grow { flex: 1 1 280px; }
 .inline-form input[type="number"] { width: 140px; }

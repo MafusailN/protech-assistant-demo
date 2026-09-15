@@ -33,6 +33,8 @@
     check: "M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z",
     sparkle: "M19 9l1.25-2.75L23 5l-2.75-1.25L19 1l-1.25 2.75L15 5l2.75 1.25L19 9zm-7.5.5L9 4 6.5 9.5 1 12l5.5 2.5L9 20l2.5-5.5L17 12l-5.5-2.5zM19 15l-1.25 2.75L15 19l2.75 1.25L19 23l1.25-2.75L23 19l-2.75-1.25L19 15z",
     add: "M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z",
+    target: "M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm8.94 3A8.994 8.994 0 0 0 13 3.06V1h-2v2.06A8.994 8.994 0 0 0 3.06 11H1v2h2.06A8.994 8.994 0 0 0 11 20.94V23h2v-2.06A8.994 8.994 0 0 0 20.94 13H23v-2h-2.06zM12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z",
+    swap: "M6.99 11 3 15l3.99 4v-3H14v-2H6.99v-3zM21 9l-3.99-4v3H10v2h7.01v3L21 9z",
   };
   const icon = (name, cls = "") =>
     `<svg class="icon ${cls}" viewBox="0 0 24 24" aria-hidden="true"><path d="${ICONS[name]}"/></svg>`;
@@ -52,7 +54,8 @@
     card: null,          // карточка от ProtekApi — единственный источник правды
     filter: "all",
     open: null,          // номер раскрытой строки
-    mode: {},            // номер строки → analog | link | custom | qty
+    mode: {},            // номер строки → link | custom | qty
+    ask: {},             // номер строки → товар, по которому спрошено «тот самый или аналог»
     error: null,         // {number, text} — ошибка у формы строки
     busy: false,
     step: "",
@@ -262,8 +265,9 @@
     </tr>${open ? `<tr class="detail"><td colspan="7">${detailHtml(match)}</td></tr>` : ""}`;
   }
 
-  function optionsHtml(match, analog) {
+  function optionsHtml(match) {
     const chosenId = match.chosen && !match.chosen.custom ? match.chosen.id : "";
+    const asked = ui.ask[match.number] || "";
     const list = [...match.alternatives];
     if (chosenId && !list.some((c) => c.id === chosenId)) list.unshift(match.chosen);
     // Наличие наверх, порядок внутри устойчивый; выбор бота помечен отдельно,
@@ -271,20 +275,40 @@
     const sorted = list.map((c, i) => ({ c, i }))
       .sort((a, b) => ((b.c.stock > 0) - (a.c.stock > 0)) || a.i - b.i)
       .map((x) => x.c);
-    const head = analog
-      ? `<p class="detail-title">Возьмёте как аналог</p><p class="hint">Запомню как замену, а не как тот самый товар: в следующей заявке спрошу снова.</p>`
-      : `<p class="detail-title">Что нашлось на портале</p>`;
     const items = sorted.map((c, i) => {
       const isChosen = c.id === chosenId;
+      const isAsked = c.id === asked;
       const tag = isChosen ? ` <span class="tag tag-bot">${match.confirmed ? "выбрано" : "предложение бота"}</span>` : "";
-      return `<li class="option${isChosen ? " is-chosen" : ""}">
+      const price = `<span class="option-price">${c.price == null ? "по запросу" : money(c.price)}</span>`;
+      const take = isAsked ? "" : `<button type="button" class="btn btn-sm btn-primary" data-act="ask" data-id="${esc(c.id)}">Взять</button>`;
+      return `<li class="option${isChosen ? " is-chosen" : ""}${isAsked ? " is-asking" : ""}">
         <span class="option-no">${i + 1}</span>
         <div><div class="option-name">${esc(c.name)}${tag}</div><div class="meta">${metaHtml(c)}</div></div>
-        <div class="option-side"><span class="option-price">${c.price == null ? "по запросу" : money(c.price)}</span>
-          <button type="button" class="btn btn-sm${analog ? "" : " btn-primary"}" data-act="pick" data-id="${esc(c.id)}" data-analog="${analog}">${analog ? "Взять как аналог" : "Взять"}</button></div>
+        <div class="option-side">${price}${take}</div>
+        ${isAsked ? askHtml(c) : ""}
       </li>`;
     }).join("");
-    return head + `<ul class="options">${items}</ul>`;
+    return `<p class="detail-title">Что нашлось на портале</p><ul class="options">${items}</ul>`;
+  }
+
+  /**
+   * Вопрос на каждом выборе: тот самый это товар или замена — как в боте
+   * (15.09.2026). Отдельную «Взять вариант как аналог» забывали, и замена
+   * уходила в память тем самым товаром. Кнопки ответов одного вида:
+   * выделенная «Тот самый» подталкивала бы к себе, а защита как раз от этого.
+   * И без галочки на «Тот самый»: в боте её однажды прочли как «уже отмечено».
+   */
+  function askHtml(candidate) {
+    const id = esc(candidate.id);
+    return `<div class="ask" role="group" aria-label="Тот самый товар или замена" tabindex="-1">
+      <p class="ask-q">Это тот самый товар или замена?</p>
+      <div class="ask-acts">
+        <button type="button" class="btn btn-sm" data-act="answer" data-id="${id}" data-analog="false">${icon("target", "icon-18")} Тот самый</button>
+        <button type="button" class="btn btn-sm" data-act="answer" data-id="${id}" data-analog="true">${icon("swap", "icon-18")} Аналог</button>
+        <button type="button" class="link" data-act="unask">Отмена</button>
+      </div>
+      <p class="hint">«Тот самый» — клиент просил именно его: запомню, и у этого клиента в следующий раз подставлю сам. «Аналог» — подойдёт вместо исходного: запомню как замену и в следующий раз спрошу снова.</p>
+    </div>`;
   }
 
   function qtyForm(match) {
@@ -305,7 +329,7 @@
       <div class="field grow"><label class="label" for="link-${n}">Ссылка на товар портала</label>
         <input type="text" inputmode="url" id="link-${n}" name="url" placeholder="https://…/products/…" autocomplete="off"></div>
       <button type="submit" class="btn btn-primary">Найти по ссылке</button>
-    </form><p class="hint">Товар возьму как аналог: в следующей заявке предложу его, но молча не подставлю.</p>`;
+    </form><p class="hint">Найду товар на портале и спрошу, тот самый это или замена.</p>`;
   }
 
   function customForm(match) {
@@ -333,14 +357,13 @@
       body = `<div><button type="button" class="btn btn-primary" data-act="retry">${icon("retry", "icon-18")} Повторить поиск</button></div>`;
     } else if (mode === "link") body = linkForm(match);
     else if (mode === "custom") body = customForm(match);
-    else if (hasOptions) body = optionsHtml(match, mode === "analog");
+    else if (hasOptions) body = optionsHtml(match);
     else if (match.chosen) body = `<p>Сейчас в заявке своя позиция: «${esc(match.chosen.name)}», ${money(match.chosen.price)}.</p>`;
     else body = `<p>На портале ничего похожего не нашлось. Укажите товар ссылкой, заведите свою позицию или отмените строку.</p>`;
 
     const ways = [];
     if (match.mark !== "retry" && !match.needs_quantity) {
       if (mode) ways.push(`<button type="button" class="link" data-act="mode" data-mode="">${hasOptions ? "К вариантам" : "Назад"}</button>`);
-      if (hasOptions && mode !== "analog") ways.push(`<button type="button" class="link" data-act="mode" data-mode="analog">Взять вариант как аналог</button>`);
       if (mode !== "link") ways.push(`<button type="button" class="link" data-act="mode" data-mode="link">Указать товар ссылкой</button>`);
       if (mode !== "custom") ways.push(`<button type="button" class="link" data-act="mode" data-mode="custom">Завести свою позицию</button>`);
       if (match.chosen && mode !== "qty") ways.push(`<button type="button" class="link" data-act="mode" data-mode="qty">Изменить количество</button>`);
@@ -697,6 +720,7 @@
   function lineDone(number) {
     return () => {
       ui.mode[number] = "";
+      delete ui.ask[number];
       const match = ui.card.matches.find((m) => m.number === number);
       if (!match || match.ok) ui.open = nextProblem(ui.card, number);
     };
@@ -710,7 +734,7 @@
       if (!ok) return;
       await run(() => api.cancel(setStep));
     }
-    Object.assign(ui, { view: "intake", open: null, mode: {}, filter: "all", files: [], invoice: null, error: null });
+    Object.assign(ui, { view: "intake", open: null, mode: {}, ask: {}, filter: "all", files: [], invoice: null, error: null });
     ui.intake = { text: "", file: null, error: "" };
     render();
     $("#intake-text").focus();
@@ -735,7 +759,7 @@
       const result = await api.parse(source, setStep);
       ui.card = result.draft;
       log(result.said);
-      Object.assign(ui, { view: "card", filter: "all", open: null, mode: {} });
+      Object.assign(ui, { view: "card", filter: "all", open: null, mode: {}, ask: {} });
     } catch (error) {
       intake.error = error.message;
       ui.view = "intake";
@@ -755,16 +779,26 @@
   }
 
   const actions = {
-    filter: (el) => { ui.filter = el.dataset.filter; ui.open = null; render(); },
-    close: () => { ui.open = null; render(); },
+    filter: (el) => { ui.filter = el.dataset.filter; ui.open = null; ui.ask = {}; render(); },
+    close: () => { ui.open = null; ui.ask = {}; render(); },
     mode: (el, n) => {
       ui.mode[n] = el.dataset.mode;
+      delete ui.ask[n];
       ui.error = null;
       render();
       const input = main.querySelector("tr.detail input");
       if (input) input.focus();
     },
-    pick: (el, n) => run(() => api.pick(n, el.dataset.id, { analog: el.dataset.analog === "true" }, setStep), lineDone(n)),
+    // «Взять» ничего не записывает: раскрывает вопрос «тот самый или аналог».
+    // Фокус — на вопросе, а не на кнопке ответа: Enter не должен отвечать за человека.
+    ask: (el, n) => {
+      ui.ask[n] = el.dataset.id;
+      render();
+      const question = main.querySelector("tr.detail .ask");
+      if (question) question.focus({ preventScroll: true });
+    },
+    unask: (el, n) => { delete ui.ask[n]; render(); },
+    answer: (el, n) => run(() => api.pick(n, el.dataset.id, { analog: el.dataset.analog === "true" }, setStep), lineDone(n)),
     retry: (el, n) => run(() => api.retry(n, setStep), lineDone(n)),
     remove: (el, n) => run(() => api.removeLine(n, setStep), () => { ui.open = null; }),
     delivery: openDelivery,
@@ -778,7 +812,7 @@
     offer: () => run(() => api.saveList("offer", setStep), (res) => ui.files.push(res.file)),
     done: () => run(() => api.done()),
     repeat: () => run(() => api.repeat(setStep), () => {
-      Object.assign(ui, { files: [], invoice: null, open: null, mode: {}, filter: "all" });
+      Object.assign(ui, { files: [], invoice: null, open: null, mode: {}, ask: {}, filter: "all" });
     }),
     fresh: startIntake,
     parse,
@@ -825,6 +859,7 @@
   function toggleRow(number) {
     ui.open = ui.open === number ? null : number;
     ui.error = null;
+    ui.ask = {};
     render();
     if (ui.open != null) revealRow(ui.open);
   }
@@ -846,7 +881,13 @@
     const data = new FormData(form);
     const kind = form.dataset.form;
     if (kind === "qty") run(() => api.setQuantity(number, toNumber(data.get("qty")), setStep), lineDone(number));
-    if (kind === "link") run(() => api.byLink(number, data.get("url"), setStep), lineDone(number));
+    // Ссылка только находит товар; тот самый он или замена — ответ на вопрос.
+    if (kind === "link") {
+      run(() => api.findByLink(number, data.get("url"), setStep), (res) => {
+        ui.mode[number] = "";
+        ui.ask[number] = res.found_id;
+      });
+    }
     if (kind === "custom") run(() => api.custom(number, data.get("name"), toNumber(data.get("price")), setStep), lineDone(number));
   });
 
