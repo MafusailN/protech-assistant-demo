@@ -84,7 +84,7 @@ a:hover { text-decoration: underline; }
 .topbar-in { display: flex; justify-content: space-between; align-items: center; gap: 16px; min-height: 32px; }
 .demo-note { display: flex; align-items: center; gap: 8px; font: 400 13px/18px var(--font); color: var(--ink-2); }
 .demo-pill {
-  padding: 1px 8px; border-radius: 9999px; background: var(--warn-10); color: var(--warn);
+  padding: 1px 8px; border-radius: 9999px; background: #1F1F1F; color: #fff;
   font: 700 12px/18px var(--cond); letter-spacing: .04em; text-transform: uppercase;
 }
 .topbar-links { display: flex; gap: 20px; font: 700 14px/20px var(--cond); text-transform: uppercase; color: #000; }
@@ -254,7 +254,8 @@ table.lines { width: 100%; border-collapse: separate; border-spacing: 0; font-si
 .lines tr.row > td:first-child { box-shadow: inset 3px 0 0 var(--stripe, transparent); }
 /* Раскрытая строка встаёт к верху экрана, а не под панель действий внизу листа. */
 .lines tr.row { scroll-margin-top: 16px; }
-.row.m-attention { --stripe: var(--warn-icon); }
+/* У «решается здесь» полосы нет: жёлтым на странице остаётся только значок
+   (решение владельца 15.09.2026). Синяя и красная полосы — как были. */
 .row.m-retry { --stripe: var(--primary); }
 .row.m-missing { --stripe: var(--error); }
 
@@ -271,8 +272,8 @@ table.lines { width: 100%; border-collapse: separate; border-spacing: 0; font-si
 .reason { margin-top: 6px; font-size: 13px; line-height: 18px; color: var(--ink-2); }
 
 .qty-was { color: var(--ink-4); text-decoration: line-through; }
-.qty-note { display: block; font-size: 12px; line-height: 16px; color: var(--warn); }
-.qty-none { color: var(--warn); }
+.qty-note { display: block; font-size: 12px; line-height: 16px; color: var(--ink-3); }
+.qty-none { color: var(--ink-2); }
 .c-sum { font-weight: 700; }
 
 .tag {
@@ -282,7 +283,7 @@ table.lines { width: 100%; border-collapse: separate; border-spacing: 0; font-si
 }
 .tag-analog { background: var(--primary-10); color: var(--primary); }
 .tag-custom { background: #EFE9FB; color: #5B3FA8; }
-.tag-request { background: var(--warn-10); color: var(--warn); }
+.tag-request { background: var(--surface); color: var(--ink-2); }
 .tag-bot { background: var(--secondary-10); color: #06735F; }
 
 /* Что сделать со строкой — сразу в ячейке товара. */
@@ -290,7 +291,9 @@ table.lines { width: 100%; border-collapse: separate; border-spacing: 0; font-si
   display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px 0 6px;
   border-radius: var(--radius); font-size: 13px; line-height: 18px; white-space: nowrap;
 }
-.todo-attention { background: var(--warn-10); color: var(--warn); }
+/* Жёлтый — только значок: текст обычный, подложка серая, как у фильтров портала. */
+.todo-attention { background: var(--surface); color: var(--ink); }
+.todo-attention .icon { color: var(--warn-icon); }
 .todo-retry { background: var(--primary-10); color: var(--primary); }
 .todo-missing { background: var(--error-10); color: #93000A; }
 
@@ -335,7 +338,7 @@ table.lines { width: 100%; border-collapse: separate; border-spacing: 0; font-si
 
 .notes { display: flex; flex-direction: column; gap: 12px; padding: 16px; }
 .warnings { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; }
-.warnings li { display: flex; gap: 8px; font-size: 14px; line-height: 20px; color: var(--warn); }
+.warnings li { display: flex; gap: 8px; font-size: 14px; line-height: 20px; color: var(--ink-2); }
 .warnings .icon { color: var(--warn-icon); }
 
 .removed { display: flex; flex-direction: column; gap: 8px; padding: 14px 16px; border-radius: 8px; background: var(--surface); }
@@ -354,7 +357,7 @@ table.lines { width: 100%; border-collapse: separate; border-spacing: 0; font-si
 }
 .bar-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 28px; }
 .bar-cancel { margin-left: auto; }
-.next-step { flex: 1 1 260px; display: flex; align-items: center; gap: 8px; font-size: 14px; line-height: 20px; color: var(--warn); }
+.next-step { flex: 1 1 260px; display: flex; align-items: center; gap: 8px; font-size: 14px; line-height: 20px; color: var(--ink); }
 .next-step .icon { color: var(--warn-icon); }
 .next-step.is-ready { color: var(--ink); }
 .next-step.is-ready .icon { color: var(--secondary-dark); }
@@ -362,12 +365,12 @@ table.lines { width: 100%; border-collapse: separate; border-spacing: 0; font-si
 
 .total { display: flex; flex-direction: column; }
 .total-sum { font: 700 28px/32px var(--cond); font-variant-numeric: tabular-nums; }
-.total-note { font-size: 12px; line-height: 16px; color: var(--warn); }
+.total-note { font-size: 12px; line-height: 16px; color: var(--ink-3); }
 
 .facts { flex: 1 1 240px; display: flex; flex-direction: column; gap: 4px; min-width: 0; font-size: 14px; line-height: 20px; }
 .fact { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .fact .icon { color: var(--ink-3); }
-.fact-empty { color: var(--warn); }
+.fact-empty { color: var(--ink); }
 .fact-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 420px; }
 
 .actions { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 8px; margin-left: auto; }
@@ -403,7 +406,7 @@ table.lines { width: 100%; border-collapse: separate; border-spacing: 0; font-si
 .log .t-warn .icon { color: var(--warn-icon); }
 .log .t-error { color: var(--error); }
 .log .t-error .icon { color: var(--error); }
-.log .t-demo { color: var(--warn); }
+.log .t-demo { color: var(--ink-2); }
 .log .t-demo .icon { color: var(--warn-icon); }
 .log time { display: block; font-size: 12px; line-height: 16px; color: var(--ink-4); }
 
@@ -497,7 +500,8 @@ dialog::backdrop { background: rgba(0, 0, 0, .4); }
 .order-client { display: flex; align-items: center; gap: 14px; padding: 14px 16px; border-radius: 8px; background: var(--primary-5); }
 .order-client .icon { width: 32px; height: 32px; color: var(--primary); }
 .order-client .name { font: 700 22px/28px var(--cond); }
-.order-note { font-size: 14px; color: var(--warn); }
+.order-note { display: flex; align-items: flex-start; gap: 8px; font-size: 14px; color: var(--ink); }
+.order-note .icon { color: var(--warn-icon); }
 
 /* --- узкий экран ---------------------------------------------------------- */
 

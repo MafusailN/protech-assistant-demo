@@ -57,6 +57,7 @@
     mode: {},            // номер строки → find | custom | qty
     query: {},           // номер строки → что вводили в «Указать товар»: ошибка не стирает текст
     ask: {},             // номер строки → товар, по которому спрошено «тот самый или аналог»
+    found: {},           // номер строки → найденное по запросу менеджера {how, items}: ещё не выбор
     error: null,         // {number, text} — ошибка у формы строки
     busy: false,
     step: "",
@@ -266,10 +267,17 @@
     </tr>${open ? `<tr class="detail"><td colspan="7">${detailHtml(match)}</td></tr>` : ""}`;
   }
 
-  function optionsHtml(match) {
-    const chosenId = match.chosen && !match.chosen.custom ? match.chosen.id : "";
+  /**
+   * Варианты строки — или найденное по запросу менеджера (`found`). Найденное
+   * живёт отдельно и в варианты строки не попадает, пока на вопрос не
+   * ответили: «Отмена» его убирает. Владелец поймал 15.09.2026, что
+   * отменённый щит оставался среди вариантов. Так и в боте: найденное по
+   * ссылке лежит в `state.resolved`, а не в `alternatives`.
+   */
+  function optionsHtml(match, found = null) {
+    const chosenId = !found && match.chosen && !match.chosen.custom ? match.chosen.id : "";
     const asked = ui.ask[match.number] || "";
-    const list = [...match.alternatives];
+    const list = found ? [...found.items] : [...match.alternatives];
     if (chosenId && !list.some((c) => c.id === chosenId)) list.unshift(match.chosen);
     // Наличие наверх, порядок внутри устойчивый; выбор бота помечен отдельно,
     // иначе первый номер значил бы то «бот выбрал», то «есть на складе».
@@ -289,7 +297,11 @@
         ${isAsked ? askHtml(c) : ""}
       </li>`;
     }).join("");
-    return `<p class="detail-title">Что нашлось на портале</p><ul class="options">${items}</ul>`;
+    const head = found
+      ? `<p class="detail-title">Нашлось ${esc(found.how)}</p>` +
+        `<p class="hint">Это ещё не выбор: возьмёте — спрошу, тот самый это товар или замена. «Отмена» — и найденное пропадёт.</p>`
+      : `<p class="detail-title">Что нашлось на портале</p>`;
+    return `${head}<ul class="options">${items}</ul>`;
   }
 
   /**
@@ -357,6 +369,7 @@
   function detailHtml(match) {
     const position = match.position;
     const mode = ui.mode[match.number] || "";
+    const found = ui.found[match.number];
     const facts = [`<p class="raw">В заявке: ${esc(position.raw)}</p>`];
     if (match.reason) facts.push(`<p>${match.ok ? "Сейчас подобрано" : "Почему спрашиваю"}: ${esc(match.reason)}</p>`);
 
@@ -367,6 +380,7 @@
       body = `<div><button type="button" class="btn btn-primary" data-act="retry">${icon("retry", "icon-18")} Повторить поиск</button></div>`;
     } else if (mode === "find") body = findForm(match);
     else if (mode === "custom") body = customForm(match);
+    else if (found) body = optionsHtml(match, found);
     else if (hasOptions) body = optionsHtml(match);
     else if (match.chosen) body = `<p>Сейчас в заявке своя позиция: «${esc(match.chosen.name)}», ${money(match.chosen.price)}.</p>`;
     // Портал не нашёл ничего — поиск открыт сразу, без лишнего нажатия.
@@ -374,8 +388,9 @@
 
     const ways = [];
     if (match.mark !== "retry" && !match.needs_quantity) {
-      const searching = mode === "find" || (!mode && !hasOptions && !match.chosen);
-      if (mode) ways.push(`<button type="button" class="link" data-act="mode" data-mode="">${hasOptions ? "К вариантам" : "Назад"}</button>`);
+      const searching = mode === "find" || (!mode && !found && !hasOptions && !match.chosen);
+      if (mode) ways.push(`<button type="button" class="link" data-act="mode" data-mode="">${hasOptions || found ? "К вариантам" : "Назад"}</button>`);
+      else if (found) ways.push(`<button type="button" class="link" data-act="unfind">Отменить поиск</button>`);
       if (!searching) ways.push(`<button type="button" class="link" data-act="mode" data-mode="find">Указать товар: ссылка или артикул</button>`);
       if (mode !== "custom") ways.push(`<button type="button" class="link" data-act="mode" data-mode="custom">Завести свою позицию</button>`);
       if (match.chosen && mode !== "qty") ways.push(`<button type="button" class="link" data-act="mode" data-mode="qty">Изменить количество</button>`);
@@ -696,7 +711,7 @@
       // Показываем то, что уйдёт, а не то, что написали, — и просим нажать ещё раз.
       field.value = result.comment;
       const note = $("#order-note");
-      note.textContent = `${result.note} Проверьте текст и нажмите «Оформить заказ» ещё раз.`;
+      note.innerHTML = `${icon("attention", "icon-18")}<span>${esc(result.note)} Проверьте текст и нажмите «Оформить заказ» ещё раз.</span>`;
       note.hidden = false;
       return;
     }
@@ -733,6 +748,7 @@
     return () => {
       ui.mode[number] = "";
       delete ui.ask[number];
+      delete ui.found[number];
       const match = ui.card.matches.find((m) => m.number === number);
       if (!match || match.ok) ui.open = nextProblem(ui.card, number);
     };
@@ -746,7 +762,7 @@
       if (!ok) return;
       await run(() => api.cancel(setStep));
     }
-    Object.assign(ui, { view: "intake", open: null, mode: {}, ask: {}, filter: "all", files: [], invoice: null, error: null });
+    Object.assign(ui, { view: "intake", open: null, mode: {}, ask: {}, found: {}, filter: "all", files: [], invoice: null, error: null });
     ui.intake = { text: "", file: null, error: "" };
     render();
     $("#intake-text").focus();
@@ -771,7 +787,7 @@
       const result = await api.parse(source, setStep);
       ui.card = result.draft;
       log(result.said);
-      Object.assign(ui, { view: "card", filter: "all", open: null, mode: {}, ask: {} });
+      Object.assign(ui, { view: "card", filter: "all", open: null, mode: {}, ask: {}, found: {} });
     } catch (error) {
       intake.error = error.message;
       ui.view = "intake";
@@ -791,8 +807,8 @@
   }
 
   const actions = {
-    filter: (el) => { ui.filter = el.dataset.filter; ui.open = null; ui.ask = {}; render(); },
-    close: () => { ui.open = null; ui.ask = {}; render(); },
+    filter: (el) => { ui.filter = el.dataset.filter; ui.open = null; ui.ask = {}; ui.found = {}; render(); },
+    close: () => { ui.open = null; ui.ask = {}; ui.found = {}; render(); },
     mode: (el, n) => {
       ui.mode[n] = el.dataset.mode;
       delete ui.ask[n];
@@ -809,7 +825,18 @@
       const question = main.querySelector("tr.detail .ask");
       if (question) question.focus({ preventScroll: true });
     },
-    unask: (el, n) => { delete ui.ask[n]; render(); },
+    // «Отмена» у найденного по запросу убирает всё найденное: оно ещё не выбор.
+    unask: (el, n) => {
+      delete ui.ask[n];
+      if (ui.found[n]) actions.unfind(el, n);
+      else render();
+    },
+    unfind: (el, n) => {
+      delete ui.found[n];
+      delete ui.ask[n];
+      say(`Строка ${n}: поиск отменён — найденное в варианты не попало.`);
+      render();
+    },
     try: (el, n) => {
       const input = main.querySelector(`#find-${n}`);
       if (input) { input.value = el.dataset.value; input.focus(); }
@@ -828,7 +855,7 @@
     offer: () => run(() => api.saveList("offer", setStep), (res) => ui.files.push(res.file)),
     done: () => run(() => api.done()),
     repeat: () => run(() => api.repeat(setStep), () => {
-      Object.assign(ui, { files: [], invoice: null, open: null, mode: {}, ask: {}, filter: "all" });
+      Object.assign(ui, { files: [], invoice: null, open: null, mode: {}, ask: {}, found: {}, filter: "all" });
     }),
     fresh: startIntake,
     parse,
@@ -876,6 +903,7 @@
     ui.open = ui.open === number ? null : number;
     ui.error = null;
     ui.ask = {};
+    ui.found = {};
     render();
     if (ui.open != null) revealRow(ui.open);
   }
@@ -903,7 +931,8 @@
       ui.query[number] = String(data.get("query") || "");
       run(() => api.findProduct(number, ui.query[number], setStep), (res) => {
         ui.mode[number] = "";
-        if (res.found_ids.length === 1) ui.ask[number] = res.found_ids[0];
+        ui.found[number] = { how: res.how, items: res.found };
+        ui.ask[number] = res.found.length === 1 ? res.found[0].id : "";
       });
     }
     if (kind === "custom") run(() => api.custom(number, data.get("name"), toNumber(data.get("price")), setStep), lineDone(number));

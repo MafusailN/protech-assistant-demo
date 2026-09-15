@@ -220,6 +220,8 @@
   const company = () => COMPANIES.find((c) => c.id === draft.company_id);
   const priced = (candidate) =>
     candidate.price == null || candidate.custom ? candidate.price : round(candidate.price * company().factor, 2);
+  /** Товар для экрана: подпись и цена по активному клиенту. */
+  const present = (candidate) => ({ ...candidate, label: label(candidate), price: priced(candidate) });
 
   function newDraft(matches, source, companyId) {
     matches.forEach((m, i) => { m.number = i + 1; });
@@ -279,11 +281,10 @@
   /** Карточка целиком — то, что потом отдаст сервер. */
   function view() {
     const d = draft;
-    const withLabel = (c) => ({ ...c, label: label(c), price: priced(c) });
     const matches = d.matches.map((m) => ({
       ...structuredClone(m),
-      chosen: m.chosen ? withLabel(m.chosen) : null,
-      alternatives: m.alternatives.map(withLabel),
+      chosen: m.chosen ? present(m.chosen) : null,
+      alternatives: m.alternatives.map(present),
       mark: mark(m), ok: isOk(m), needs_quantity: needsQuantity(m),
       line: d.lines.find((line) => line.number === m.number) || null,
     }));
@@ -438,8 +439,9 @@
      * Товар, указанный менеджером: ссылка, артикул портала или код / название.
      * Как в боте: ссылка — товар по ссылке, «УТ…» — точный поиск по артикулу
      * портала, остальное — поиск по названию, куда портал пишет и код
-     * производителя. Найденное только ставится в варианты строки; тот самый
-     * это товар или замена, решает ответ на вопрос — дальше обычный `pick`.
+     * производителя. Найденное строку не меняет и в варианты не попадает:
+     * тот самый это товар или замена, решает ответ на вопрос — дальше `pick`,
+     * а «Отмена» оставляет строку как была (как `state.resolved` в боте).
      */
     async findProduct(number, query, onStep = quiet) {
       requireDraft();
@@ -479,11 +481,8 @@
         }
         how = `по «${text}»`;
       }
-      found.forEach((c) => { if (!m.alternatives.some((a) => a.id === c.id)) m.alternatives.push(c); });
-      // Прежняя причина «на портале ничего не нашлось» после поиска уже неправда.
-      if (!m.chosen) m.reason = `нашлось ${how}`;
       return {
-        draft: view(), found_ids: found.map((c) => c.id),
+        draft: view(), how, found: found.map(present), found_ids: found.map((c) => c.id),
         said: [said(found.length === 1
           ? `Строка ${number}: ${how} нашёл «${label(found[0])}». Тот самый это товар или замена?`
           : `Строка ${number}: ${how} нашёл ${plural(found.length, "вариант", "варианта", "вариантов")} — выберите нужный.`)],
