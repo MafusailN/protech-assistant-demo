@@ -59,6 +59,9 @@
     P("p-dkc91920", "DKC", "Труба гофрированная ПВХ лёгкая с протяжкой д20 мм (100 м)", "УТ-00014520", 11.9, { unit: "м", multiplicity: 100, stock: 8800, manufacturer_code: "91920" }),
     P("p-km41216", "IEK", "Коробка распаячная КМ41216 для о/п 100х100х50 мм IP44", "УТ-00009921", 118, { stock: 640, manufacturer_code: "UKO10-100-100-050-K41-44" }),
     P("p-shield", "IEK", "Щит металлический ЩМП-4-0 У2 IP54 650х500х220", "УТ-00011874", 4870, { stock: 11, manufacturer_code: "YKM40-04-54" }),
+    // Тот самый щит из строки 11: по длинному названию портал его не находит,
+    // по артикулу или коду — находит. На нём и видно, зачем поле «артикул».
+    P("p-shield-6615", "EKF", "Щит металлический с монтажной панелью ЩМП-6.6.15 IP54 600х600х150", "УТ-00011902", 6240, { stock: 4, manufacturer_code: "ЩМП-6.6.15" }),
     P("p-kk4025", "Промрукав", "Кабель-канал 40х25 белый (2 м)", "УТ-00022937", 96, { unit: "м", multiplicity: 2, stock: 3200, manufacturer_code: "PR09.0302" }),
     P("p-shun", "Рубеж", "Шкаф управления насосами ШУН/В-18-03-R3", "УТ-00032410", null, { manufacturer_code: "Rbz-126523" }),
     P("p-mayak", "Электротехника и Автоматика", "Оповещатель звуковой Маяк-24-3М", "УТ-00005530", 410, { stock: 500, manufacturer_code: "Маяк-24-3М" }),
@@ -140,6 +143,8 @@
     excel: { kind: "file", title: "Спецификация, Excel", fileName: "Спецификация_Школа3_корпус_Б.xlsx",
              text: SAMPLE_TEXT.split("\n").slice(1, -1).join("\n") },
     addition: { kind: "text", title: "Дописка клиента", text: ADDITION_TEXT },
+    // Что ввести в «Указать товар» у строки, которую портал не нашёл (строка 11).
+    find: ["УТ-00011902", "ЩМП-6.6.15", "https://b2b.pro-tek.pro/products/demo"],
   };
 
   function M(raw, name, quantity, unit, chosen, confidence, reason, alternatives = [], extra = {}) {
@@ -353,6 +358,11 @@
 
   const quiet = () => {};
 
+  // Артикул портала — учётный код 1С: «УТ-00011902», «УТ000000348».
+  const PORTAL_ARTICLE = /^(ут|ut)[\s-]?\d{5,}$/i;
+  // Для сравнения кодов: регистр, пробелы, дефисы и точки не важны; «x» в размерах — как «х».
+  const squash = (text) => String(text || "").toLowerCase().replace(/x/g, "х").replace(/[\s\-_.]/g, "");
+
   window.ProtekApi = {
     samples: () => structuredClone(SAMPLES),
 
@@ -425,24 +435,58 @@
     },
 
     /**
-     * Товар по ссылке: только найти и поставить в варианты строки. Тот самый
-     * он или замена, решает ответ менеджера на вопрос — дальше обычный `pick`.
-     * Раньше найденное бралось аналогом без спроса; бот так не делает.
+     * Товар, указанный менеджером: ссылка, артикул портала или код / название.
+     * Как в боте: ссылка — товар по ссылке, «УТ…» — точный поиск по артикулу
+     * портала, остальное — поиск по названию, куда портал пишет и код
+     * производителя. Найденное только ставится в варианты строки; тот самый
+     * это товар или замена, решает ответ на вопрос — дальше обычный `pick`.
      */
-    async findByLink(number, url, onStep = quiet) {
+    async findProduct(number, query, onStep = quiet) {
       requireDraft();
       const m = find(number);
-      const text = (url || "").trim();
-      if (!/^https?:\/\//i.test(text)) {
-        throw new Error("Нужна ссылка на страницу товара портала — адрес из строки браузера, начинается с https://");
+      const text = (query || "").trim();
+      if (!text) throw new Error("Пришлите ссылку на товар, артикул портала или код производителя.");
+      let found;
+      let how;
+      if (/^https?:\/\//i.test(text)) {
+        onStep("Открываю товар по ссылке…");
+        await wait(700);
+        found = [cand(m.demo_link || "p-shield")];
+        how = "по ссылке";
+      } else if (PORTAL_ARTICLE.test(text)) {
+        onStep("Ищу по артикулу портала…");
+        await wait(600);
+        const wanted = Number(text.replace(/\D/g, ""));
+        found = Object.values(CATALOG)
+          .filter((p) => Number(p.article.replace(/\D/g, "")) === wanted).map((p) => cand(p.id));
+        if (!found.length) {
+          throw new Error(`Артикул ${text} на портале не нашёлся. Проверьте его в карточке товара на сайте — он вида УТ-00011902.`);
+        }
+        how = `по артикулу ${text}`;
+      } else {
+        onStep("Ищу на портале по коду и названию…");
+        await wait(700);
+        const words = text.split(/\s+/).map(squash).filter(Boolean);
+        found = Object.values(CATALOG)
+          .filter((p) => {
+            const hay = squash(`${p.brand} ${p.name} ${p.manufacturer_code}`);
+            return words.every((word) => hay.includes(word));
+          })
+          .slice(0, 8).map((p) => cand(p.id));
+        if (!found.length) {
+          throw new Error("По этому на портале ничего нет. Пришлите артикул портала (вида УТ-00011902) — " +
+                          "он в карточке товара на сайте — или ссылку на товар.");
+        }
+        how = `по «${text}»`;
       }
-      onStep("Открываю товар по ссылке…");
-      await wait(700);
-      const found = cand(m.demo_link || "p-shield");
-      if (!m.alternatives.some((c) => c.id === found.id)) m.alternatives.push(found);
+      found.forEach((c) => { if (!m.alternatives.some((a) => a.id === c.id)) m.alternatives.push(c); });
+      // Прежняя причина «на портале ничего не нашлось» после поиска уже неправда.
+      if (!m.chosen) m.reason = `нашлось ${how}`;
       return {
-        draft: view(), found_id: found.id,
-        said: [said(`Строка ${number}: по ссылке нашёл «${label(found)}». Тот самый это товар или замена?`)],
+        draft: view(), found_ids: found.map((c) => c.id),
+        said: [said(found.length === 1
+          ? `Строка ${number}: ${how} нашёл «${label(found[0])}». Тот самый это товар или замена?`
+          : `Строка ${number}: ${how} нашёл ${plural(found.length, "вариант", "варианта", "вариантов")} — выберите нужный.`)],
       };
     },
 

@@ -54,7 +54,8 @@
     card: null,          // карточка от ProtekApi — единственный источник правды
     filter: "all",
     open: null,          // номер раскрытой строки
-    mode: {},            // номер строки → link | custom | qty
+    mode: {},            // номер строки → find | custom | qty
+    query: {},           // номер строки → что вводили в «Указать товар»: ошибка не стирает текст
     ask: {},             // номер строки → товар, по которому спрошено «тот самый или аналог»
     error: null,         // {number, text} — ошибка у формы строки
     busy: false,
@@ -323,13 +324,22 @@
     </form>${hint}`;
   }
 
-  function linkForm(match) {
+  /**
+   * Товар, который портал сам не нашёл: ссылка, артикул портала или код
+   * производителя — как у бота («ссылка, артикул или название»). Раньше
+   * здесь принималась одна ссылка, а под рукой у менеджера чаще артикул.
+   */
+  function findForm(match) {
     const n = match.number;
-    return `<form class="inline-form" data-form="link">
-      <div class="field grow"><label class="label" for="link-${n}">Ссылка на товар портала</label>
-        <input type="text" inputmode="url" id="link-${n}" name="url" placeholder="https://…/products/…" autocomplete="off"></div>
-      <button type="submit" class="btn btn-primary">Найти по ссылке</button>
-    </form><p class="hint">Найду товар на портале и спрошу, тот самый это или замена.</p>`;
+    const tries = (api.samples().find || []).map((value) =>
+      `<button type="button" class="link" data-act="try" data-value="${esc(value)}">${esc(/^https?:/.test(value) ? "ссылка на товар" : value)}</button>`).join("");
+    return `<form class="inline-form" data-form="find">
+      <div class="field grow"><label class="label" for="find-${n}">Ссылка, артикул портала или код производителя</label>
+        <input type="text" id="find-${n}" name="query" value="${esc(ui.query[n] || "")}" placeholder="УТ-00000000, код с упаковки или https://…/products/…" autocomplete="off"></div>
+      <button type="submit" class="btn btn-primary">Найти</button>
+    </form>
+    ${tries ? `<p class="samples">Для пробы: ${tries}</p>` : ""}
+    <p class="hint">Найду товар на портале и спрошу, тот самый это или замена. Артикул портала — в карточке товара на сайте, вида УТ-00011902.</p>`;
   }
 
   function customForm(match) {
@@ -355,16 +365,18 @@
     if (match.needs_quantity || mode === "qty") body = qtyForm(match);
     else if (match.mark === "retry") {
       body = `<div><button type="button" class="btn btn-primary" data-act="retry">${icon("retry", "icon-18")} Повторить поиск</button></div>`;
-    } else if (mode === "link") body = linkForm(match);
+    } else if (mode === "find") body = findForm(match);
     else if (mode === "custom") body = customForm(match);
     else if (hasOptions) body = optionsHtml(match);
     else if (match.chosen) body = `<p>Сейчас в заявке своя позиция: «${esc(match.chosen.name)}», ${money(match.chosen.price)}.</p>`;
-    else body = `<p>На портале ничего похожего не нашлось. Укажите товар ссылкой, заведите свою позицию или отмените строку.</p>`;
+    // Портал не нашёл ничего — поиск открыт сразу, без лишнего нажатия.
+    else body = findForm(match);
 
     const ways = [];
     if (match.mark !== "retry" && !match.needs_quantity) {
+      const searching = mode === "find" || (!mode && !hasOptions && !match.chosen);
       if (mode) ways.push(`<button type="button" class="link" data-act="mode" data-mode="">${hasOptions ? "К вариантам" : "Назад"}</button>`);
-      if (mode !== "link") ways.push(`<button type="button" class="link" data-act="mode" data-mode="link">Указать товар ссылкой</button>`);
+      if (!searching) ways.push(`<button type="button" class="link" data-act="mode" data-mode="find">Указать товар: ссылка или артикул</button>`);
       if (mode !== "custom") ways.push(`<button type="button" class="link" data-act="mode" data-mode="custom">Завести свою позицию</button>`);
       if (match.chosen && mode !== "qty") ways.push(`<button type="button" class="link" data-act="mode" data-mode="qty">Изменить количество</button>`);
     }
@@ -798,6 +810,10 @@
       if (question) question.focus({ preventScroll: true });
     },
     unask: (el, n) => { delete ui.ask[n]; render(); },
+    try: (el, n) => {
+      const input = main.querySelector(`#find-${n}`);
+      if (input) { input.value = el.dataset.value; input.focus(); }
+    },
     answer: (el, n) => run(() => api.pick(n, el.dataset.id, { analog: el.dataset.analog === "true" }, setStep), lineDone(n)),
     retry: (el, n) => run(() => api.retry(n, setStep), lineDone(n)),
     remove: (el, n) => run(() => api.removeLine(n, setStep), () => { ui.open = null; }),
@@ -881,11 +897,13 @@
     const data = new FormData(form);
     const kind = form.dataset.form;
     if (kind === "qty") run(() => api.setQuantity(number, toNumber(data.get("qty")), setStep), lineDone(number));
-    // Ссылка только находит товар; тот самый он или замена — ответ на вопрос.
-    if (kind === "link") {
-      run(() => api.findByLink(number, data.get("url"), setStep), (res) => {
+    // Поиск только находит товар; тот самый он или замена — ответ на вопрос.
+    // Нашёлся один — вопрос сразу; несколько — список, выбирает менеджер.
+    if (kind === "find") {
+      ui.query[number] = String(data.get("query") || "");
+      run(() => api.findProduct(number, ui.query[number], setStep), (res) => {
         ui.mode[number] = "";
-        ui.ask[number] = res.found_id;
+        if (res.found_ids.length === 1) ui.ask[number] = res.found_ids[0];
       });
     }
     if (kind === "custom") run(() => api.custom(number, data.get("name"), toNumber(data.get("price")), setStep), lineDone(number));
