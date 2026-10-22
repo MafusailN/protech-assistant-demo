@@ -306,7 +306,11 @@
         ? `<span class="qty-was">${qty(line.requested)}</span> ${qty(line.actual)} ${esc(line.unit)}<span class="qty-note">${esc(line.adjust_note)}</span>`
         : `${qty(line.actual)} ${esc(line.unit)}`;
       price = line.price == null ? `<span class="tag tag-request">по запросу</span>` : fixed2(line.price);
-      sum = line.total == null ? "—" : fixed2(line.total);
+      // На телефоне колонки цены нет, и тег «по запросу» пропадал вместе с ней:
+      // строка без цены выглядела как «—» в сумме. Там он стоит на месте суммы.
+      sum = line.total != null ? fixed2(line.total)
+        : line.price == null ? `<span class="only-wide">—</span><span class="only-narrow tag tag-request">по запросу</span>`
+        : "—";
     }
 
     return `<tr class="row m-${match.mark}" data-number="${match.number}" tabindex="0" aria-expanded="${open}">

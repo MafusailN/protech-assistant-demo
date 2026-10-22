@@ -294,6 +294,8 @@ table.lines { width: 100%; border-collapse: separate; border-spacing: 0; font-si
    оставить жёлтой (15.09.2026, «пока»). */
 .tag-request { background: var(--warn-10); color: var(--warn); }
 .tag-bot { background: var(--secondary-10); color: #06735F; }
+/* Показ по ширине: после .tag, чтобы перебить его display. */
+.only-narrow { display: none; }
 
 /* Что сделать со строкой — сразу в ячейке товара. */
 .todo {
@@ -480,6 +482,10 @@ table.lines { width: 100%; border-collapse: separate; border-spacing: 0; font-si
 .side-title { font: 700 16px/22px var(--cond); }
 .source {
   max-height: 220px; overflow: auto; font-size: 13px; line-height: 19px; color: var(--ink-2); white-space: pre-wrap;
+  /* Текст обрезан окном — низ гаснет, а не режет строку пополам: видно, что дальше есть ещё. */
+  padding-bottom: 16px;
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 20px), transparent);
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 20px), transparent);
 }
 .file-chip { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; white-space: normal; }
 .file-kind {
@@ -491,8 +497,13 @@ table.lines { width: 100%; border-collapse: separate; border-spacing: 0; font-si
 
 .side-log { flex: 1 1 auto; min-height: 180px; overflow: hidden; }
 .log {
-  flex: 1; min-height: 0; overflow-y: auto; margin: 0; padding: 0 4px 0 0; list-style: none;
+  flex: 1; min-height: 0; overflow-y: auto; margin: 0; padding: 20px 4px 0 0; list-style: none;
   display: flex; flex-direction: column; gap: 12px; font-size: 13px; line-height: 19px; color: var(--ink-2);
+  /* Ход работы открыт на последней записи, и верхняя видимая резалась на полуслове.
+     Верх гаснет: обрезанное читается как «выше есть ещё», а отступ сверху
+     не даёт погаснуть первой записи, когда список прокручен до начала. */
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 24px);
+  mask-image: linear-gradient(to bottom, transparent, #000 24px);
 }
 .log li { flex: none; display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 8px; }
 .log .icon { margin-top: 1px; color: var(--ink-4); }
@@ -643,18 +654,29 @@ dialog::backdrop { background: rgba(0, 0, 0, .4); }
   table.lines, .lines tbody { display: block; }
   .lines thead { display: none; }
   .lines tr.row {
-    display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; column-gap: 10px;
+    display: grid; grid-template-columns: 48px minmax(0, 1fr) auto; column-gap: 10px;
     padding: 12px 14px; border-bottom: 1px solid var(--line); box-shadow: inset 3px 0 0 var(--stripe, transparent);
   }
   .lines tr.row > td { display: block; padding: 0; border: 0; background: none !important; box-shadow: none !important; }
   .lines .edge { border-left: 0; }
   .lines .c-no { grid-row: 1 / span 3; width: auto; }
-  .lines .c-no .no { flex-direction: column; gap: 4px; }
+  /* Значок и номер — одной строкой, вровень с наименованием: столбиком номер
+     уезжал вниз и читался отдельно от значка. */
+  .lines .c-no .no { gap: 6px; }
   .lines .c-req { grid-column: 2; min-width: 0; max-width: none; }
   .lines .c-rqty { grid-column: 3; }
   .lines .c-prod { grid-column: 2; grid-row: span 2; min-width: 0; margin-top: 10px; }
   .lines .c-cqty { grid-column: 3; margin-top: 10px; }
+  /* Шапки таблицы нет, и два «40 шт» подряд было не различить: подписываем,
+     какое из заявки, а какое легло в корзину. */
+  .lines .c-rqty::before, .lines .c-cqty::before {
+    display: block; font-size: 11px; line-height: 14px; font-weight: 400; color: var(--ink-4);
+  }
+  .lines .c-rqty::before { content: "в заявке"; }
+  .lines .c-cqty::before { content: "в корзине"; }
   .lines .c-price { display: none !important; }
+  .only-wide { display: none; }
+  .only-narrow { display: inline-flex; }
   .lines .c-sum { grid-column: 3; }
   .lines tr.row[aria-expanded="true"] { background: var(--primary-5); }
   .lines tr.detail, .lines tr.detail > td { display: block; }
