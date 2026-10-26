@@ -170,7 +170,8 @@ button.user-pill:hover { background: #333; }
 .search-catalog .icon { position: relative; top: -1px; }   /* у портала top-[-1px] */
 .search-scope { display: flex; align-items: center; margin-left: 10px; color: var(--primary); }
 .search input { flex: 1; min-width: 0; margin-left: 10px; border: 0; outline: none; background: transparent; padding: 0 12px 0 0; font-size: 16px; }
-.search input::placeholder { color: rgba(0, 0, 0, .4); text-transform: uppercase; font-size: 16px; }
+/* Как у портала: заглавными только «ИНТЕЛЛЕКТУАЛЬНЫЙ ПОИСК» — так написано в самом тексте подсказки. */
+.search input::placeholder { color: rgba(0, 0, 0, .4); font-size: 16px; }
 
 .titlebar { display: none; }
 
