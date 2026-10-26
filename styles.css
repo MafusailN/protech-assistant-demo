@@ -80,6 +80,13 @@ a:hover { text-decoration: underline; }
 
 /* --- каркас портала ------------------------------------------------------ */
 
+/* Размеры сняты с b2b.pro-tek.pro (getComputedStyle, 26.10.2026): страница
+   ассистента должна переключаться с портала без скачка. Меню и поиск —
+   в колонке 1280 px с отступом 24 (у портала max-w-screen-xl px-6),
+   служебная полоса — во всю ширину окна с тем же отступом. */
+.topbar .container { max-width: none; }
+.navbar .container, .searchrow .container { max-width: 1280px; }
+
 .topbar { background: var(--topbar); }
 .topbar-in { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 4px 16px; min-height: 32px; }
 .topbar-start { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 24px; min-width: 0; }
@@ -93,11 +100,11 @@ a:hover { text-decoration: underline; }
   .topbar-links, .bar-pick { flex: none; }
   .topbar-client { flex: none; }
 }
-/* Активная компания — как у портала: флажок, название заглавными, стрелка. */
+/* Активная компания — как у портала: флажок, название как в 1С, стрелка. */
 .topbar-client {
   display: inline-flex; align-items: center; gap: 6px; min-width: 0; max-width: 100%; min-height: 32px;
-  padding: 0 4px; border: 0; background: none; color: #000; cursor: pointer;
-  font: 400 14px/20px var(--cond); text-transform: uppercase;
+  padding: 0; border: 0; background: none; color: #000; cursor: pointer;
+  font: 300 14px/20px var(--cond);
 }
 .topbar-client:hover .topbar-client-name { text-decoration: underline; }
 .topbar-client:disabled { cursor: default; color: var(--ink-3); }
@@ -109,8 +116,8 @@ a:hover { text-decoration: underline; }
   padding: 1px 8px; border-radius: 9999px; background: #1F1F1F; color: #fff;
   font: 700 12px/18px var(--cond); letter-spacing: .04em; text-transform: uppercase;
 }
-.topbar-links { display: flex; gap: 20px; font: 700 14px/20px var(--cond); text-transform: uppercase; color: #000; }
-.topbar-links span { display: inline-flex; align-items: center; gap: 2px; cursor: default; }
+.topbar-links { display: flex; gap: 24px; font: 500 14px/20px var(--cond); text-transform: uppercase; color: #000; }
+.topbar-links span { display: inline-flex; align-items: center; gap: 0; cursor: default; }
 /* Временно: где стоит полоса итога — см. app.js, «полоса итога». */
 .bar-pick { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; padding-block: 4px; font: 400 13px/18px var(--font); color: var(--ink-2); }
 .bar-pick button {
@@ -120,8 +127,8 @@ a:hover { text-decoration: underline; }
 .bar-pick button[aria-pressed="true"] { border-color: #1F1F1F; background: #1F1F1F; color: #fff; }
 
 .navbar { background: var(--header); }
-.navbar-in { display: flex; align-items: flex-end; gap: 12px; min-height: 56px; }
-.logo { display: flex; align-self: center; margin-right: 8px; }
+.navbar-in { display: flex; align-items: flex-end; min-height: 56px; }
+.logo { display: flex; align-self: center; margin-right: 16px; }
 .logo img { display: block; height: 56px; width: auto; }
 .nav { display: flex; align-self: stretch; align-items: flex-end; font: 400 18px/27px var(--cond); }
 .nav a {
@@ -130,30 +137,34 @@ a:hover { text-decoration: underline; }
 }
 .nav a:hover { background: rgba(0, 0, 0, .04); }
 .nav a[aria-current="page"] { background: var(--primary); color: #fff; }
-.nav-end { display: flex; align-items: center; gap: 8px; margin-left: auto; align-self: center; font: 400 18px/27px var(--cond); }
+.nav-end { display: flex; align-items: flex-end; margin-left: auto; align-self: stretch; font: 400 16px/24px var(--cond); }
 .nav-item {
-  display: inline-flex; align-items: center; gap: 8px; height: 50px; padding-inline: 10px;
+  display: inline-flex; align-items: center; gap: 8px; height: 50px; padding-inline: 12px;
   border: 0; background: none; color: #000; cursor: pointer; text-decoration: none;
 }
 .nav-item:hover { background: rgba(0, 0, 0, .04); text-decoration: none; }
-.nav-icon { display: inline-flex; padding: 6px; color: #000; }
+.nav-icon { display: inline-flex; align-items: center; height: 50px; padding-inline: 12px; color: #000; }
+/* «Кабинет» — чёрной плашкой, как у портала (ml-3, 14 px). */
 .user-pill {
-  display: inline-flex; align-items: center; height: 32px; padding-inline: 16px; margin-left: 8px;
-  border-radius: 9999px; background: #000; color: #fff; font: 400 14px/21px var(--cond); white-space: nowrap;
+  display: inline-flex; align-items: center; align-self: center; height: 32px; padding-inline: 16px; margin-left: 12px;
+  border: 0; border-radius: 9999px; background: #000; color: #fff; font: 400 14px/21px var(--cond); white-space: nowrap;
 }
+button.user-pill { cursor: pointer; }
+button.user-pill:hover { background: #333; }
 
-.searchrow { padding-block: 8px; border-bottom: 1px solid var(--line); }
+/* Поиск — на фоне страницы, без линии снизу: так у портала. */
+.searchrow { padding-block: 8px; background: var(--surface); }
 .search {
   display: flex; align-items: stretch; height: 40px; overflow: hidden;
   border: 2px solid var(--primary); border-radius: var(--radius); background: var(--card);
 }
 .search-catalog {
-  display: flex; align-items: center; gap: 8px; padding: 0 12px 0 10px; border: 0;
-  background: var(--primary); color: #fff; font: 400 18px/27px var(--cond); cursor: pointer;
+  display: flex; align-items: center; gap: 8px; padding: 0 12px 0 8px; border: 0;
+  background: var(--primary); color: #fff; font: 400 18px/28px var(--cond); cursor: pointer;
 }
-.search-scope { display: flex; align-items: center; padding-inline: 10px 6px; color: var(--primary); }
-.search input { flex: 1; min-width: 0; border: 0; outline: none; background: transparent; padding-inline: 6px 12px; }
-.search input::placeholder { color: rgba(0, 0, 0, .4); text-transform: uppercase; font-size: 15px; }
+.search-scope { display: flex; align-items: center; margin-left: 10px; color: var(--primary); }
+.search input { flex: 1; min-width: 0; margin-left: 10px; border: 0; outline: none; background: transparent; padding: 0 12px 0 0; font-size: 16px; }
+.search input::placeholder { color: rgba(0, 0, 0, .4); text-transform: uppercase; font-size: 16px; }
 
 .titlebar { display: none; }
 
@@ -669,7 +680,8 @@ dialog::backdrop { background: rgba(0, 0, 0, .4); }
 
 @media (max-width: 760px) {
   .demo-note { font-size: 12px; line-height: 16px; }
-  .user-pill { display: none; }
+  /* «Кабинет» на телефоне не прячем: под ним выход и кабинет админа. */
+  .user-pill { margin-left: 4px; padding-inline: 12px; }
   /* Таблица складывается в карточки строк: значок и номер слева,
      заявка и товар друг под другом, количество и сумма справа. */
   .table-wrap { overflow-x: visible; }
