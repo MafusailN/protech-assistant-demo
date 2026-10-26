@@ -224,7 +224,7 @@
     $("#client-card-name").textContent = name;
     // ИНН портал отдаёт не всегда — тогда строки нет вовсе.
     $("#client-inn").textContent = card && live() && card.company_inn ? `ИНН ${card.company_inn}` : "";
-    ["#client-button", "#client-card", "#new-request"].forEach((id) => { $(id).disabled = ui.busy; });
+    ["#client-button", "#new-request"].forEach((id) => { $(id).disabled = ui.busy; });
   }
 
   function renderSource() {
@@ -845,7 +845,6 @@
     companyDialog.showModal();
   }
   $("#client-button").addEventListener("click", openCompanies);
-  $("#client-card").addEventListener("click", openCompanies);
   $("#company-query").addEventListener("input", () => {
     clearTimeout(searchTimer);
     searchTimer = setTimeout(fillCompanies, api.minQuery ? 400 : 200);

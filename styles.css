@@ -10,7 +10,10 @@
 
 @font-face { font-family: "Roboto"; src: url("fonts/roboto-400.woff2") format("woff2"); font-weight: 400; font-display: swap; }
 @font-face { font-family: "Roboto"; src: url("fonts/roboto-700.woff2") format("woff2"); font-weight: 700; font-display: swap; }
+@font-face { font-family: "Roboto Condensed"; src: url("fonts/roboto-condensed-300.woff2") format("woff2"); font-weight: 300; font-display: swap; }
 @font-face { font-family: "Roboto Condensed"; src: url("fonts/roboto-condensed-400.woff2") format("woff2"); font-weight: 400; font-display: swap; }
+/* 300 и 500 — как у портала: клиент и ссылки служебной полосы (с 26.10.2026). */
+@font-face { font-family: "Roboto Condensed"; src: url("fonts/roboto-condensed-500.woff2") format("woff2"); font-weight: 500; font-display: swap; }
 @font-face { font-family: "Roboto Condensed"; src: url("fonts/roboto-condensed-700.woff2") format("woff2"); font-weight: 700; font-display: swap; }
 
 :root {
@@ -146,7 +149,9 @@ a:hover { text-decoration: underline; }
 .nav-icon { display: inline-flex; align-items: center; height: 50px; padding-inline: 12px; color: #000; }
 /* «Кабинет» — чёрной плашкой, как у портала (ml-3, 14 px). */
 .user-pill {
-  display: inline-flex; align-items: center; align-self: center; height: 32px; padding-inline: 16px; margin-left: 12px;
+  /* Прижата к низу меню, как у портала: пункт высотой 50 px, плашка 32 по центру — отступ 9. */
+  display: inline-flex; align-items: center; align-self: flex-end; height: 32px; padding-inline: 16px;
+  margin: 0 0 9px 12px;
   border: 0; border-radius: 9999px; background: #000; color: #fff; font: 400 14px/21px var(--cond); white-space: nowrap;
 }
 button.user-pill { cursor: pointer; }
@@ -162,6 +167,7 @@ button.user-pill:hover { background: #333; }
   display: flex; align-items: center; gap: 8px; padding: 0 12px 0 8px; border: 0;
   background: var(--primary); color: #fff; font: 400 18px/28px var(--cond); cursor: pointer;
 }
+.search-catalog .icon { position: relative; top: -1px; }   /* у портала top-[-1px] */
 .search-scope { display: flex; align-items: center; margin-left: 10px; color: var(--primary); }
 .search input { flex: 1; min-width: 0; margin-left: 10px; border: 0; outline: none; background: transparent; padding: 0 12px 0 0; font-size: 16px; }
 .search input::placeholder { color: rgba(0, 0, 0, .4); text-transform: uppercase; font-size: 16px; }
@@ -184,15 +190,13 @@ button.user-pill:hover { background: #333; }
 .client-card {
   display: flex; align-items: center; gap: 12px; padding: 8px 14px 8px 12px;
   border: 1px solid var(--primary-20); border-radius: var(--radius-card); background: var(--card);
-  text-align: left; cursor: pointer;
+  text-align: left;
 }
-.client-card:hover { border-color: var(--primary); }
 .client-card .icon { color: var(--primary); }
 .client-text { display: flex; flex-direction: column; }
 .client-label { font-size: 12px; line-height: 16px; color: var(--ink-3); }
 .client-name { font: 700 16px/22px var(--font); color: var(--ink); }
 .client-inn { font-size: 12px; line-height: 16px; color: var(--ink-3); }
-.client-change { margin-left: 8px; font-size: 14px; color: var(--link); }
 
 .workspace { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 16px; align-items: start; }
 .main { min-width: 0; }
