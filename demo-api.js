@@ -213,6 +213,9 @@
   }
 
   let draft = null;
+  // Активная компания аккаунта — живёт и без заявки, как на портале.
+  let activeCompany = 1001;
+  const companyInfo = () => { const c = COMPANIES.find((x) => x.id === activeCompany); return { id: c.id, name: c.name }; };
   let requestSeq = 6;
   let orderSeq = 416;
   let offerSeq = 48;
@@ -372,7 +375,7 @@
       draft = newDraft(sampleMatches(), SAMPLES.letter, 1001);
       buildCart();
       return {
-        draft: view(), said: parseSaid(SAMPLES.letter, false),
+        draft: view(), company: companyInfo(), said: parseSaid(SAMPLES.letter, false),
         intro: "Это пробник: заявка уже разобрана на выдуманных данных. Нажмите на строку с жёлтым, синим или красным значком, чтобы её решить.",
       };
     },
@@ -390,7 +393,7 @@
         onStep(`Ищу на портале: ${i} из ${matches.length}…`);
         await wait(120);
       }
-      draft = newDraft(matches, structuredClone(source), draft ? draft.company_id : 1001);
+      draft = newDraft(matches, structuredClone(source), activeCompany);
       await rebuild(onStep);
       return { draft: view(), said: parseSaid(source, own) };
     },
@@ -550,15 +553,20 @@
       const q = (query || "").trim().toLowerCase();
       return COMPANIES
         .filter((c) => !q || c.name.toLowerCase().includes(q) || c.inn.includes(q))
-        .map((c) => ({ id: c.id, name: c.name, inn: c.inn, active: !!draft && c.id === draft.company_id }));
+        .map((c) => ({ id: c.id, name: c.name, inn: c.inn, active: c.id === activeCompany }));
     },
 
     async switchCompany(companyId, onStep = quiet) {
-      requireDraft();
-      if (companyId === draft.company_id) return { draft: view(), said: [said("Этот клиент уже активный.")] };
       const client = COMPANIES.find((c) => c.id === companyId);
+      if (companyId === activeCompany) return { draft: draft ? view() : null, company: companyInfo(), said: [said("Этот клиент уже активный.")] };
       onStep("Переключаю активного клиента на портале…");
       await wait(600);
+      activeCompany = client.id;
+      // Без заявки — только переключение, как в боте.
+      if (!draft || draft.status !== "draft") {
+        return { draft: draft ? view() : null, company: companyInfo(),
+                 said: [said(`Клиент сменён: ${client.name}. Новая заявка соберётся уже на него.`, "good")] };
+      }
       const hadAddress = draft.delivery_id === "address";
       draft.company_id = client.id;
       draft.delivery_options = deliveryOptions(client);
@@ -568,7 +576,7 @@
         out.push(said("Прежний адрес доставки у нового клиента не предлагается — выберите способ получения заново.", "warn"));
       }
       await rebuild(onStep);
-      return { draft: view(), said: out };
+      return { draft: view(), company: companyInfo(), said: out };
     },
 
     async addPositions(source, onStep = quiet) {

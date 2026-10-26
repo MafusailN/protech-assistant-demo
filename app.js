@@ -173,6 +173,7 @@
     try {
       const result = await call();
       if (result && result.draft) ui.card = result.draft;
+      if (result && result.company) ui.company = result.company;
       if (result) log(result.said);
       if (after) after(result);
       followStatus();
@@ -216,11 +217,13 @@
 
   function renderClient() {
     const card = ui.card;
-    const name = card ? card.company_name : "—";
+    // Открытая заявка — её клиент; без неё — активная компания аккаунта на
+    // портале (`ui.company`): её видно и менять можно и без заявки, как в боте.
+    const name = card && live() ? card.company_name : (ui.company ? ui.company.name : (card ? card.company_name : "—"));
     $("#client-name").textContent = name;
     $("#client-card-name").textContent = name;
     // ИНН портал отдаёт не всегда — тогда строки нет вовсе.
-    $("#client-inn").textContent = card && card.company_inn ? `ИНН ${card.company_inn}` : "";
+    $("#client-inn").textContent = card && live() && card.company_inn ? `ИНН ${card.company_inn}` : "";
     ["#client-button", "#client-card", "#new-request"].forEach((id) => { $(id).disabled = ui.busy; });
   }
 
@@ -833,8 +836,10 @@
       : `<li class="hint">Никого не нашёл. Контрагентов заводят в 1С — на портал они приезжают сами.</li>`;
   }
 
+  // Клиента меняют и без заявки — как в боте: это активная компания аккаунта
+  // на портале. С открытой заявкой корзина пересобирается на нового клиента.
   function openCompanies() {
-    if (!live()) { say("Клиента меняют у открытой заявки — сейчас её нет.", "warn"); return; }
+    if (ui.busy) return;
     $("#company-query").value = "";
     fillCompanies();
     companyDialog.showModal();
@@ -1239,6 +1244,7 @@
   // последнюю закрытую или ничего — тогда начинаем с новой.
   Promise.resolve(api.boot()).then((boot) => {
     if (boot.intro) say(boot.intro, "demo");
+    if (boot.company) ui.company = boot.company;
     if (boot.draft) {
       ui.card = boot.draft;
       followStatus();
