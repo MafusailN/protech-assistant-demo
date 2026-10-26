@@ -181,6 +181,9 @@ button.user-pill:hover { background: #333; }
 .page-head {
   display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px 20px;
   margin-bottom: 16px;
+  /* Высота карточки клиента: у страниц без неё (кабинет) заголовок стоит
+     там же, где у ассистента, и переход ничего не сдвигает. */
+  min-height: 56px;
 }
 .page-title h1 { font: 400 22px/28px var(--cond); color: var(--ink); }
 .page-sub { margin-top: 2px; font-size: 14px; line-height: 20px; color: var(--ink-2); }
