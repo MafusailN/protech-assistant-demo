@@ -17,8 +17,19 @@
 <header class="portal">
   <div class="topbar">
     <div class="container topbar-in">
-      <p class="demo-note"><span class="demo-pill">Пробник</span>
-        <span>Клиенты, цены и номера выдуманы — на портал и в 1С ничего не уходит.</span></p>
+      <div class="topbar-start">
+        <!-- Активная компания — как у портала: слева в служебной полосе, флажок
+             и название, по нажатию — выбор клиента. Это состояние аккаунта,
+             общее для сайта портала и ассистента. До 26.10.2026 стояла в меню
+             справа, со значком здания; перенесена по скриншоту портала. -->
+        <button type="button" class="topbar-client" id="client-button" aria-haspopup="dialog" title="Сменить клиента">
+          <svg class="icon icon-18 flag" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.4 6 14 4H5v17h2v-7h5.6l.4 2h7V6z"/></svg>
+          <span class="topbar-client-name" id="client-name">—</span>
+          <svg class="icon icon-16" viewBox="0 0 24 24" aria-hidden="true"><path d="M16.59 8.59 12 13.17 7.41 8.59 6 10l6 6 6-6z"/></svg>
+        </button>
+        <p class="demo-note"><span class="demo-pill">Пробник</span>
+          <span>Клиенты, цены и номера выдуманы — на портал и в 1С ничего не уходит.</span></p>
+      </div>
       <!-- Временно (15.09.2026): полоса итога прилипает к низу окна, как на
            портале, или стоит в конце страницы — выбирает владелец. -->
       <div class="bar-pick" role="group" aria-label="Где стоит полоса итога">
@@ -47,12 +58,6 @@
         <a class="nav-item" href="#" data-portal>
           <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 18c-1.1 0-1.99.9-1.99 2S5.9 22 7 22s2-.9 2-2-.9-2-2-2zM1 2v2h2l3.6 7.59-1.35 2.45c-.16.28-.25.61-.25.96 0 1.1.9 2 2 2h12v-2H7.42c-.14 0-.25-.11-.25-.25l.03-.12.9-1.63h7.45c.75 0 1.41-.41 1.75-1.03l3.58-6.49A1.003 1.003 0 0 0 20 4H5.21l-.94-2H1zm16 16c-1.1 0-1.99.9-1.99 2s.89 2 1.99 2 2-.9 2-2-.9-2-2-2z"/></svg>
           <span>Корзина</span></a>
-        <!-- Активная компания — на месте выбора региона: это такое же состояние
-             аккаунта, общее для сайта и ассистента. -->
-        <button type="button" class="nav-item" id="client-button" aria-haspopup="dialog" title="Сменить клиента">
-          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 7V3H2v18h20V7H12zM6 19H4v-2h2v2zm0-4H4v-2h2v2zm0-4H4V9h2v2zm0-4H4V5h2v2zm4 12H8v-2h2v2zm0-4H8v-2h2v2zm0-4H8V9h2v2zm0-4H8V5h2v2zm10 12h-8v-2h2v-2h-2v-2h2v-2h-2V9h8v10zm-2-8h-2v2h2v-2zm0 4h-2v2h2v-2z"/></svg>
-          <span class="company-name" id="client-name">—</span>
-        </button>
         <a class="nav-icon" href="#" data-portal aria-label="Помощь">
           <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H8c0-2.21 1.79-4 4-4s4 1.79 4 4c0 .88-.36 1.68-.93 2.25z"/></svg></a>
         <span class="user-pill">Анна Демо</span>

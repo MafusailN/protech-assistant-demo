@@ -82,6 +82,28 @@ a:hover { text-decoration: underline; }
 
 .topbar { background: var(--topbar); }
 .topbar-in { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 4px 16px; min-height: 32px; }
+.topbar-start { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 24px; min-width: 0; }
+/* Как у портала: клиент слева, ссылки справа — одной строкой. Сжимается
+   надпись пробника, а не переносятся ссылки. */
+@media (min-width: 901px) {
+  .topbar-in { flex-wrap: nowrap; }
+  .topbar-start { flex: 1 1 auto; flex-wrap: nowrap; }
+  .topbar-start .demo-note { min-width: 0; }
+  .topbar-start .demo-note > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .topbar-links, .bar-pick { flex: none; }
+  .topbar-client { flex: none; }
+}
+/* Активная компания — как у портала: флажок, название заглавными, стрелка. */
+.topbar-client {
+  display: inline-flex; align-items: center; gap: 6px; min-width: 0; max-width: 100%; min-height: 32px;
+  padding: 0 4px; border: 0; background: none; color: #000; cursor: pointer;
+  font: 400 14px/20px var(--cond); text-transform: uppercase;
+}
+.topbar-client:hover .topbar-client-name { text-decoration: underline; }
+.topbar-client:disabled { cursor: default; color: var(--ink-3); }
+.topbar-client:disabled .topbar-client-name { text-decoration: none; }
+.topbar-client .flag { color: var(--secondary); }
+.topbar-client-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 360px; }
 .demo-note { display: flex; align-items: center; gap: 8px; font: 400 13px/18px var(--font); color: var(--ink-2); }
 .demo-pill {
   padding: 1px 8px; border-radius: 9999px; background: #1F1F1F; color: #fff;
@@ -114,7 +136,6 @@ a:hover { text-decoration: underline; }
   border: 0; background: none; color: #000; cursor: pointer; text-decoration: none;
 }
 .nav-item:hover { background: rgba(0, 0, 0, .04); text-decoration: none; }
-.company-name { max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .nav-icon { display: inline-flex; padding: 6px; color: #000; }
 .user-pill {
   display: inline-flex; align-items: center; height: 32px; padding-inline: 16px; margin-left: 8px;
@@ -631,7 +652,8 @@ dialog::backdrop { background: rgba(0, 0, 0, .4); }
 }
 
 @media (max-width: 900px) {
-  .topbar-links, .nav, .searchrow, .nav-item span, .company-name { display: none; }
+  .topbar-links, .nav, .searchrow, .nav-item span { display: none; }
+  .topbar-client-name { max-width: 60vw; }
   .navbar-in { align-items: center; }
   .titlebar {
     display: flex; align-items: center; gap: 20px; min-height: 56px; padding-inline: 16px;

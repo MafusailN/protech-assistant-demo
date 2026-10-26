@@ -96,6 +96,11 @@
   }
 
   const live = () => ui.card && ui.card.status === "draft";
+  /** Метка файла по расширению: «XLSX», «PDF», «JPG». */
+  const fileKind = (name) => {
+    const tail = String(name || "").split(".").pop();
+    return tail && tail !== name && tail.length <= 4 ? tail.toUpperCase() : "ФАЙЛ";
+  };
 
   // --- ход работы: бот проговаривает всё, что сделал сам -----------------
 
@@ -214,7 +219,8 @@
     const name = card ? card.company_name : "—";
     $("#client-name").textContent = name;
     $("#client-card-name").textContent = name;
-    $("#client-inn").textContent = card ? `ИНН ${card.company_inn}` : "";
+    // ИНН портал отдаёт не всегда — тогда строки нет вовсе.
+    $("#client-inn").textContent = card && card.company_inn ? `ИНН ${card.company_inn}` : "";
     ["#client-button", "#client-card", "#new-request"].forEach((id) => { $(id).disabled = ui.busy; });
   }
 
@@ -228,7 +234,7 @@
     const source = ui.card && ui.card.source;
     if (!source) { box.textContent = ""; return; }
     const chip = source.kind === "file"
-      ? `<div class="file-chip"><span class="file-kind">XLSX</span><span class="file-name">${esc(source.fileName)}</span></div>`
+      ? `<div class="file-chip"><span class="file-kind">${esc(fileKind(source.fileName))}</span><span class="file-name">${esc(source.fileName)}</span></div>`
       : "";
     box.innerHTML = chip + esc(source.text);
   }
@@ -473,10 +479,10 @@
   function filesHtml() {
     if (!ui.files.length) return "";
     return `<div class="files">${ui.files.map((file) => {
-      const kind = file.name.split(".").pop().toUpperCase();
+      const kind = fileKind(file.name);
       return `<div class="file-card"><span class="file-kind${kind === "PDF" ? " pdf" : ""}">${esc(kind)}</span>
         <span class="file-name">${esc(file.name)}</span><span class="file-size">${esc(file.size)}</span>
-        <button type="button" class="btn btn-sm" data-act="download">${icon("download", "icon-18")} Скачать</button></div>`;
+        <button type="button" class="btn btn-sm" data-act="download" data-url="${esc(file.url || "")}">${icon("download", "icon-18")} Скачать</button></div>`;
     }).join("")}</div>`;
   }
 
@@ -552,10 +558,15 @@
     const onRequest = card.on_request.length
       ? `<div class="sum-col" title="В сумму не входят — цену поставят в 1С"><span class="caption">По запросу</span>
           <span class="sum-value">${plural(card.on_request.length, "позиция", "позиции", "позиций")}${icon("info", "icon-16")}</span></div>` : "";
+    // Сервер может ещё не оформлять заказ (`orderNote`): тогда кнопка
+    // говорит это на себе, а нажатие объясняет, где оформить.
+    const order = api.orderNote
+      ? `<button type="button" class="pbtn pbtn-primary" data-act="order-note" title="${esc(api.orderNote)}"${card.ready ? "" : " disabled"}>Оформить заказ — в боте</button>`
+      : `<button type="button" class="pbtn pbtn-primary" data-act="order" aria-describedby="step-chip"${card.ready ? "" : " disabled"}>Оформить заказ</button>`;
     checkout.innerHTML = `
       <div class="container checkout-in">
         <div class="checkout-acts">
-          <button type="button" class="pbtn pbtn-primary" data-act="order" aria-describedby="step-chip"${card.ready ? "" : " disabled"}>Оформить заказ</button>
+          ${order}
           <button type="button" class="pbtn" data-act="spec"${off}>Спецификация</button>
           <button type="button" class="pbtn" data-act="offer"${off}>КП</button>
           <button type="button" class="pbtn" data-act="keep"${off}>Оставить в корзине</button>
@@ -577,7 +588,7 @@
   function renderIntake() {
     const intake = ui.intake;
     const file = intake.file
-      ? `<div class="file-card"><span class="file-kind">XLSX</span><span class="file-name">${esc(intake.file.name)}</span>
+      ? `<div class="file-card"><span class="file-kind">${esc(fileKind(intake.file.name))}</span><span class="file-name">${esc(intake.file.name)}</span>
          <button type="button" class="link" data-act="unfile">Убрать</button></div>` : "";
     main.innerHTML = `
       <section class="panel">
@@ -589,14 +600,14 @@
           ${icon("upload")}
           <span><b>Приложите файл</b> или перетащите его сюда
             <span class="kinds" aria-hidden="true"><span>XLSX</span><span>XLS</span><span>DOCX</span><span>PDF</span><span>ФОТО</span></span></span>
-          <input type="file" id="intake-file" accept=".xlsx,.xls,.docx,.pdf,image/*" aria-label="Файл заявки">
+          <input type="file" id="intake-file" accept=".xlsx,.xls,.docx,.pdf,.csv,.txt,image/*" aria-label="Файл заявки">
         </label>
         ${file}
         ${intake.error ? `<p class="form-error" role="alert">${icon("missing", "icon-18")}${esc(intake.error)}</p>` : ""}
         <div class="panel-foot">
-          <p class="samples">Для пробы:
+          ${api.samples().letter ? `<p class="samples">Для пробы:
             <button type="button" class="link" data-act="sample" data-sample="letter">письмо клиента</button>
-            <button type="button" class="link" data-act="sample" data-sample="excel">спецификация в Excel</button></p>
+            <button type="button" class="link" data-act="sample" data-sample="excel">спецификация в Excel</button></p>` : "<span></span>"}
           <button type="button" class="btn btn-primary btn-lg" data-act="parse">${icon("sparkle")} Разобрать заявку</button>
         </div>
         <p class="hint">Голосовые не принимаю — нужен текст или документ.</p>
@@ -801,10 +812,24 @@
   let searchTimer = null;
 
   async function fillCompanies() {
-    const found = await api.searchCompanies($("#company-query").value);
-    $("#company-list").innerHTML = found.length
+    const query = $("#company-query").value;
+    const list = $("#company-list");
+    // Клиентов у менеджера тысячи: сервер ищет только по запросу (`minQuery`).
+    if (api.minQuery && query.trim().length < api.minQuery) {
+      list.innerHTML = `<li class="hint">Наберите хотя бы ${api.minQuery} знака названия или ИНН — найду.</li>`;
+      return;
+    }
+    let found;
+    try {
+      found = await api.searchCompanies(query);
+    } catch (error) {
+      list.innerHTML = `<li class="hint">${esc(error.message)}</li>`;
+      return;
+    }
+    if (query !== $("#company-query").value) return;   // пока искали, запрос сменился
+    list.innerHTML = found.length
       ? found.map((c) => `<li><button type="button" data-company="${c.id}"${c.active ? " disabled" : ""}>
-          <span>${esc(c.name)}${c.active ? " — сейчас активный" : ""}</span><span class="inn">ИНН ${esc(c.inn)}</span></button></li>`).join("")
+          <span>${esc(c.name)}${c.active ? " — сейчас активный" : ""}</span>${c.inn ? `<span class="inn">ИНН ${esc(c.inn)}</span>` : ""}</button></li>`).join("")
       : `<li class="hint">Никого не нашёл. Контрагентов заводят в 1С — на портал они приезжают сами.</li>`;
   }
 
@@ -818,7 +843,7 @@
   $("#client-card").addEventListener("click", openCompanies);
   $("#company-query").addEventListener("input", () => {
     clearTimeout(searchTimer);
-    searchTimer = setTimeout(fillCompanies, 200);
+    searchTimer = setTimeout(fillCompanies, api.minQuery ? 400 : 200);
   });
   $("#company-list").addEventListener("click", (event) => {
     const button = event.target.closest("button[data-company]");
@@ -895,9 +920,10 @@
     orderDialog.showModal();
   }
 
-  $("#order-place").addEventListener("click", () => {
+  $("#order-place").addEventListener("click", async () => {
     const field = $("#order-comment");
-    const result = api.setComment(field.value);
+    // У пробника ответ сразу, у сервера — обещание; `await` годится для обоих.
+    const result = await api.setComment(field.value);
     ui.card = result.draft;
     if (result.note) {
       // Показываем то, что уйдёт, а не то, что написали, — и просим нажать ещё раз.
@@ -922,8 +948,10 @@
     // Комментарий живёт в черновике: вернувшийся к заявке увидит его на месте.
     const field = $("#order-comment");
     if (live() && field && field.value.trim() !== ui.card.manager_comment) {
-      ui.card = api.setComment(field.value).draft;
-      render();
+      Promise.resolve(api.setComment(field.value)).then((result) => {
+        ui.card = result.draft;
+        render();
+      }, (error) => say(error.message, "error"));
     }
   });
 
@@ -973,8 +1001,10 @@
       return;
     }
     const samples = api.samples();
+    // Файл уходит на сервер как есть (`file`); пробник показывает вместо него пример.
     const source = intake.file
-      ? { ...samples.excel, fileName: intake.file.name }
+      ? { kind: "file", title: "Файл заявки", ...(samples.excel || {}), fileName: intake.file.name,
+          file: intake.file.blob || null, ...(samples.excel ? {} : { text: intake.text }) }
       : { kind: "text", title: "Текст заявки", text: intake.text };
     Object.assign(ui, { view: "parsing", steps: [], busy: true });
     render();
@@ -995,7 +1025,7 @@
   function takeFile(file) {
     if (!file) return;
     const field = $("#intake-text");
-    ui.intake.file = { name: file.name };
+    ui.intake.file = { name: file.name, blob: file };
     if (field) ui.intake.text = field.value;
     ui.intake.error = "";
     render();
@@ -1041,6 +1071,7 @@
     remove: (el, n) => run(() => api.removeLine(n, setStep), () => { ui.open = null; }),
     delivery: openDelivery,
     order: openOrder,
+    "order-note": () => say(api.orderNote, "warn"),
     cancel: () => {
       if (!window.confirm(`Отменить заявку №${ui.card.request_id}? Корзина на портале очистится.`)) return;
       run(() => api.cancel(setStep));
@@ -1062,7 +1093,10 @@
       render();
     },
     unfile: () => { ui.intake.file = null; render(); },
-    download: () => say("В пробнике файла нет — на портале он придёт готовым и откроется одним касанием.", "demo"),
+    download: (el) => {
+      if (el.dataset.url) window.location.assign(el.dataset.url);
+      else say("В пробнике файла нет — на портале он придёт готовым и откроется одним касанием.", "demo");
+    },
     "copy-removed": async () => {
       const text = "Не вошло в заявку:\n" + ui.card.removed.map((item) => `· ${item}`).join("\n");
       try {
@@ -1168,17 +1202,26 @@
   $("#composer-sample").addEventListener("click", () => {
     $("#composer-text").value = api.samples().addition.text;
   });
+  $("#composer-sample").hidden = !api.samples().addition;
 
   // Каркас портала в пробнике никуда не ведёт — говорим об этом, а не молчим.
+  // С сервера меню и поиск ведут на сам портал, в новой вкладке.
   document.addEventListener("click", (event) => {
     const link = event.target.closest("[data-portal]");
     if (!link) return;
     event.preventDefault();
-    say("В пробнике работает только раздел «Ассистент» — остальное меню портала здесь для вида.", "demo");
+    if (api.portalUrl) window.open(api.portalUrl, "_blank", "noopener");
+    else say("В пробнике работает только раздел «Ассистент» — остальное меню портала здесь для вида.", "demo");
   });
   $("#portal-search-form").addEventListener("submit", (event) => {
     event.preventDefault();
-    say("Поиск по каталогу в пробнике не работает — это строка портала, она здесь для вида.", "demo");
+    const query = $("#portal-search").value.trim();
+    if (api.portalUrl) {
+      const url = `${api.portalUrl}/products` + (query ? `?criteria[keyword]=${encodeURIComponent(query)}` : "");
+      window.open(url, "_blank", "noopener");
+    } else {
+      say("Поиск по каталогу в пробнике не работает — это строка портала, она здесь для вида.", "demo");
+    }
   });
 
   // --- старт: заявка уже разобрана, чтобы было на что смотреть -------------
@@ -1192,9 +1235,21 @@
   applySide();
   ui.bar = new URLSearchParams(window.location.search).get("itog") === "fixed" ? "fixed" : "static";
   applyBar();
-  const boot = api.boot();
-  ui.card = boot.draft;
-  say("Это пробник: заявка уже разобрана на выдуманных данных. Нажмите на строку с жёлтым, синим или красным значком, чтобы её решить.", "demo");
-  log(boot.said);
-  render();
+  // Пробник отдаёт заявку сразу, сервер — обещанием: открытую заявку,
+  // последнюю закрытую или ничего — тогда начинаем с новой.
+  Promise.resolve(api.boot()).then((boot) => {
+    if (boot.intro) say(boot.intro, "demo");
+    if (boot.draft) {
+      ui.card = boot.draft;
+      followStatus();
+    } else {
+      ui.view = "intake";
+    }
+    log(boot.said);
+    render();
+  }, (error) => {
+    ui.view = "intake";
+    ui.intake.error = error.message;
+    render();
+  });
 })();

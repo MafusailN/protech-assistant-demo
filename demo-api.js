@@ -371,7 +371,10 @@
     boot() {
       draft = newDraft(sampleMatches(), SAMPLES.letter, 1001);
       buildCart();
-      return { draft: view(), said: parseSaid(SAMPLES.letter, false) };
+      return {
+        draft: view(), said: parseSaid(SAMPLES.letter, false),
+        intro: "Это пробник: заявка уже разобрана на выдуманных данных. Нажмите на строку с жёлтым, синим или красным значком, чтобы её решить.",
+      };
     },
 
     current: () => (draft ? view() : null),
