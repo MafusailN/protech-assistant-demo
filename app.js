@@ -107,15 +107,17 @@
 
   // --- ход работы: бот проговаривает всё, что сделал сам -----------------
 
-  function log(entries) {
-    const now = new Date().toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
+  /** `restored` — журнал, который сервер вернул после обновления страницы: он уже был прочитан. */
+  function log(entries, restored = false) {
+    const clock = (at) => (at ? new Date(at) : new Date())
+      .toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
     // Строка текущей работы (`working`) остаётся последней.
     const busy = $("#log-busy");
     for (const entry of entries || []) {
       const tone = entry.tone || "plain";
       const item = document.createElement("li");
       item.className = `t-${tone}`;
-      item.innerHTML = `${icon(LOG_ICON[tone] || "dot", "icon-18")}<div><time>${now}</time>${esc(entry.text)}</div>`;
+      item.innerHTML = `${icon(LOG_ICON[tone] || "dot", "icon-18")}<div><time>${clock(entry.at)}</time>${esc(entry.text)}</div>`;
       logList.insertBefore(item, busy);
     }
     while (logList.children.length > 60) logList.firstElementChild.remove();
@@ -124,7 +126,7 @@
     logList.scrollTop = logList.scrollHeight;
     // Панель скрыта — сказанное считается на значке, чтобы не прошло мимо.
     const fresh = entries || [];
-    if (fresh.length && !sideShown()) {
+    if (fresh.length && !restored && !sideShown()) {
       side.unread += fresh.length;
       if (fresh.some((entry) => entry.tone === "error")) side.alarm = true;
       renderUnread();
@@ -668,10 +670,47 @@
       const now = i === ui.steps.length - 1;
       return `<li class="${now ? "is-now" : ""}">${now ? `<span class="spinner" aria-hidden="true"></span>` : icon("check", "icon-18")}${esc(step)}</li>`;
     }).join("");
-    const found = /(\d+) из (\d+)/.exec(ui.steps[ui.steps.length - 1] || "");
-    const done = ui.steps.some((s) => /корзин|итог/i.test(s));
+    // Полоса — весь разбор, а не текущий шаг: человек читает её как «сколько
+    // осталось всего», и откат к началу на шаге без счётчика сбивал.
+    const [from, to] = stageSpan(ui.steps);
+    progress.floor = Math.max(progress.floor, from);
+    progress.cap = Math.max(progress.cap, to);
+    paintProgress();
+  }
+
+  // У этапа разбора свой отрезок полосы: чтение и разбор модели — до 25 %,
+  // поиск на портале — 25–80 % по счётчику, корзина — 80–97 %. Внутри
+  // отрезка без счётчика полоса понемногу ползёт к его концу (`creep`),
+  // чтобы долгий разбор фото не выглядел зависшим. Назад не ходит никогда.
+  const progress = { shown: 0, floor: 0, cap: 0, timer: 0 };
+
+  function stageSpan(steps) {
+    const last = steps[steps.length - 1] || "";
+    const count = /(\d+) из (\d+)/.exec(last);
+    const share = count ? Math.min(1, Number(count[1]) / Math.max(1, Number(count[2]))) : null;
+    const searching = /^Ищу на портале/.test(last);
+    if (searching && share != null) return [25 + 55 * share, 25 + 55 * share];
+    // Всё после поиска — сборка корзины и расчёт портала.
+    if (steps.some((s) => /^Ищу на портале/.test(s))) return [80 + 17 * (share || 0), 97];
+    if (steps.length > 1) return [6, 25];
+    return [2, 6];
+  }
+
+  function paintProgress() {
+    progress.shown = Math.min(100, Math.max(progress.shown, progress.floor));
     const bar = $("#bar");
-    if (bar) bar.style.width = done ? "100%" : found ? `${Math.round((found[1] / found[2]) * 85)}%` : "6%";
+    if (bar) bar.style.width = `${progress.shown.toFixed(1)}%`;
+  }
+
+  function startProgress() {
+    Object.assign(progress, { shown: 0, floor: 0, cap: 0 });
+    clearInterval(progress.timer);
+    progress.timer = setInterval(() => {
+      if (ui.view !== "parsing") { clearInterval(progress.timer); return; }
+      // Ползёт к концу отрезка, всё медленнее, и не дотягивает до него.
+      if (progress.cap > progress.shown + 0.5) progress.shown += (progress.cap - progress.shown) * 0.02;
+      paintProgress();
+    }, 250);
   }
 
   function renderOrdered() {
@@ -1031,6 +1070,7 @@
           file: intake.file.blob || null, ...(samples.excel ? {} : { text: intake.text }) }
       : { kind: "text", title: "Текст заявки", text: intake.text };
     Object.assign(ui, { view: "parsing", steps: [], busy: true, step: "Читаю заявку…" });
+    startProgress();
     render();
     // Ход разбора — и последней строкой «Хода работы», как у любой долгой
     // работы (`run`): иначе журнал пустовал, пока разбор не кончится.
@@ -1304,7 +1344,7 @@
     } else {
       ui.view = "intake";
     }
-    log(boot.said);
+    log(boot.said, true);
     render();
   }, (error) => {
     ui.view = "intake";
