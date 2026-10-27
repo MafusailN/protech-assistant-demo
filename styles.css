@@ -434,8 +434,14 @@ table.lines { width: 100%; border-collapse: separate; border-spacing: 0; font-si
 .sum-value { display: inline-flex; align-items: center; gap: 4px; font: 700 16px/24px var(--font); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .sum-value .icon { color: var(--ink-3); }
 .sum-total { font-size: 18px; }
-.sum-delivery { display: flex; align-items: baseline; gap: 8px; line-height: 24px; }
-.sum-text { max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sum-delivery { display: flex; align-items: flex-end; gap: 8px; line-height: 24px; }
+/* Адрес самовывоза длинный: в одну строку его резало на полуслове. Две
+   строки помельче, многоточие — только у совсем длинных, целиком — в подсказке. */
+.sum-text {
+  max-width: 300px; overflow: hidden; font-size: 14px; line-height: 20px;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
+}
+.sum-delivery .link { white-space: nowrap; }
 
 /* Кнопки полосы — как у портала: заглавные, Roboto Condensed 700. */
 .pbtn {
