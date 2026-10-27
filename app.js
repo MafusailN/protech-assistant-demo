@@ -1125,10 +1125,7 @@
   const actions = {
     filter: (el) => { ui.filter = el.dataset.filter; ui.open = null; ui.ask = {}; ui.found = {}; render(); },
     close: (el, n) => {
-      // «Свернуть» стоит под длинным списком вариантов: свернули — и строка
-      // уезжала за верх экрана, а под курсором оказывались чужие строки.
-      // Возвращаем свёрнутую строку туда, где была кнопка, и подсвечиваем.
-      foldRow(n, el.getBoundingClientRect().bottom);
+      foldRow(n);
     },
     mode: (el, n) => {
       ui.mode[n] = el.dataset.mode;
@@ -1239,6 +1236,7 @@
   });
 
   function toggleRow(number) {
+    if (ui.open === number) return foldRow(number);
     // Выше раскрыта другая строка — она схлопнется, и нажатая отскочила бы
     // вверх рывком. Держим нажатую под курсором, дальше она плавно едет сама.
     const at = (n) => main.querySelector(`tr.row[data-number="${n}"]`)?.getBoundingClientRect().top;
@@ -1289,12 +1287,13 @@
   }
 
   /**
-   * Свернуть строку так, чтобы она встала низом на высоту `bottom` окна (не под
-   * шапкой и не под полосой итога). Как раскрытие наоборот: сначала экран плавно
-   * едет к строке — видно, куда она ушла, — и только там раскрытая часть
-   * убирается. Раскрытое лежит под строкой, поэтому строка при этом не сдвигается.
+   * Свернуть строку: раскрытая часть плавно схлопывается, а строка остаётся,
+   * где была (ушла за верх экрана — съезжает к верху). Мгновенное
+   * схлопывание у конца списка роняло страницу рывком: прокручивать стало
+   * некуда, и браузер сдёргивал её вниз. Теперь страница опускается вместе
+   * со схлопыванием, плавно.
    */
-  function foldRow(number, bottom) {
+  function foldRow(number) {
     const fold = () => {
       ui.open = null; ui.ask = {}; ui.found = {};
       render();
@@ -1305,12 +1304,39 @@
       setTimeout(() => row.classList.remove("just-closed"), 1600);
     };
     const row = main.querySelector(`tr.row[data-number="${number}"]`);
-    if (!row) return fold();
-    const rect = row.getBoundingClientRect();
-    const barTop = checkoutWrap.hidden || getComputedStyle(checkoutWrap).position !== "fixed"
-      ? window.innerHeight : checkoutWrap.getBoundingClientRect().top;
-    const want = Math.min(Math.max(bottom, rect.height + 16), barTop - 16);
-    glide(window.scrollY + rect.bottom - want, fold);
+    const body = row?.nextElementSibling?.querySelector(".detail-body");
+    if (!body) return fold();
+    const margin = parseFloat(getComputedStyle(row).scrollMarginTop) || 0;
+    const top = row.getBoundingClientRect().top;
+    const final = Math.max(top, margin);
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduce) {
+      window.scrollBy(0, top - final);
+      return fold();
+    }
+    const style = getComputedStyle(body);
+    const height = body.offsetHeight;
+    const pads = [parseFloat(style.paddingTop), parseFloat(style.paddingBottom)];
+    Object.assign(body.style, { overflow: "hidden", boxSizing: "border-box" });
+    // Прокрутку ведём сами по кадрам — браузерная привязка к содержимому мешала бы.
+    const root = document.documentElement;
+    root.style.overflowAnchor = "none";
+    const time = Math.min(450, 220 + height * 0.25);
+    const start = performance.now();
+    const ease = (t) => 1 - (1 - t) ** 3;
+    const frame = (now) => {
+      const t = Math.min(1, (now - start) / time);
+      const left = 1 - ease(t);
+      body.style.height = `${height * left}px`;
+      body.style.paddingTop = `${pads[0] * left}px`;
+      body.style.paddingBottom = `${pads[1] * left}px`;
+      const want = top + (final - top) * ease(t);
+      window.scrollBy(0, row.getBoundingClientRect().top - want);
+      if (t < 1) return requestAnimationFrame(frame);
+      root.style.overflowAnchor = "";
+      fold();
+    };
+    requestAnimationFrame(frame);
   }
 
   main.addEventListener("submit", (event) => {
