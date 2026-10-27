@@ -68,6 +68,7 @@
     found: {},           // номер строки → найденное по запросу менеджера {how, items}: ещё не выбор
     error: null,         // {number, text} — ошибка у формы строки
     busy: false,
+    busyRow: null,       // номер строки, которую отменяют из свёрнутого вида
     step: "",
     files: [],           // что уже пришло файлами по этой заявке
     invoice: null,
@@ -343,9 +344,12 @@
                 todo("attention", `Выбрать: ${plural(match.alternatives.length, "вариант", "варианта", "вариантов")}`);
     } else {
       // Нечем закрыть строку — отменить её можно прямо отсюда, не раскрывая.
-      product = `<p class="reason">${esc(match.reason)}.</p><div class="todo-row">
+      // Пока её отменяют, ход виден здесь же, на месте кнопок, — как в
+      // раскрытой строке (`busyLine`), а не только плашкой над полосой.
+      const working = ui.busy && ui.busyRow === match.number && ui.open !== match.number;
+      product = `<p class="reason">${esc(match.reason)}.</p>` + (working ? busyLine() : `<div class="todo-row">
         <span class="todo todo-missing">${icon("missing", "icon-18")}Указать товар</span>
-        <button type="button" class="todo todo-drop" data-act="remove"${ui.busy ? " disabled" : ""}>${icon("delete", "icon-18")}Отменить строку</button></div>`;
+        <button type="button" class="todo todo-drop" data-act="remove"${ui.busy ? " disabled" : ""}>${icon("delete", "icon-18")}Отменить строку</button></div>`);
     }
 
     let cartQty = "—";
@@ -1190,7 +1194,12 @@
     answer: (el, n) => run(() => api.pick(n, el.dataset.id, { analog: el.dataset.analog === "true" }, setStep), lineDone(n)),
     retry: (el, n) => run(() => api.retry(n, setStep), lineDone(n)),
     // Отменить можно и из свёрнутой строки («нет в каталоге») — раскрытую другую не закрываем.
-    remove: (el, n) => run(() => api.removeLine(n, setStep), () => { if (ui.open === n) ui.open = null; }),
+    remove: (el, n) => {
+      // Какую строку отменяют — чтобы ход показать в ней (`rowHtml`).
+      ui.busyRow = n;
+      return run(() => api.removeLine(n, setStep), () => { if (ui.open === n) ui.open = null; })
+        .finally(() => { ui.busyRow = null; });
+    },
     delivery: openDelivery,
     order: openOrder,
     cancel: async () => {
