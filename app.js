@@ -597,7 +597,11 @@
         // Шаг — выбрать получение: открыть выбор прямо из плашки.
         (!card.delivery_id && card.lines.length && !card.counts.attention && !card.counts.retry && !card.counts.missing
           ? `<button type="button" class="link" data-act="delivery">Выбрать</button>` : "");
-    stepChip.className = `step-chip${ui.busy ? " is-busy" : card.ready ? " is-ready" : ""}`;
+    // Ход уже виден там, где нажали (`busyLine` в раскрытой строке), — второй
+    // «Работаю…» рядом в плашке лишний: она прячется, но место держит,
+    // чтобы полоса итога не прыгала.
+    const shownInRow = ui.busy && !!main.querySelector(".busy-line");
+    stepChip.className = `step-chip${ui.busy ? " is-busy" : card.ready ? " is-ready" : ""}${shownInRow ? " is-quiet" : ""}`;
     // Плашка — живая область для читалки: переписываем, только когда текст сменился.
     if (html !== chipHtml) {
       stepChip.innerHTML = html;

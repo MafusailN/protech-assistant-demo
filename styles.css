@@ -475,6 +475,7 @@ table.lines { width: 100%; border-collapse: separate; border-spacing: 0; font-si
 .step-chip .icon { color: var(--warn-icon); }
 .step-chip.is-ready .icon { color: var(--secondary-dark); }
 .step-chip.is-busy { color: var(--ink-2); }
+.step-chip.is-quiet { visibility: hidden; }
 
 /* Полоса итога прилипает к низу окна, как у портала (решение владельца
    27.10.2026: у маленькой заявки панель справа выше листа, и до кнопок
