@@ -233,6 +233,20 @@
   </form>
 </dialog>
 
+<!-- Подтверждение необратимого — вместо системного confirm(), в виде портала. -->
+<dialog id="confirm-dialog" aria-labelledby="confirm-title" aria-describedby="confirm-text">
+  <form method="dialog" class="dialog">
+    <header class="dialog-head">
+      <h2 id="confirm-title"></h2>
+      <p id="confirm-text"></p>
+    </header>
+    <footer class="dialog-foot">
+      <button type="submit" class="btn btn-ghost" value="alt" id="confirm-alt"></button>
+      <button type="submit" class="btn btn-alarm" value="ok" id="confirm-ok"></button>
+    </footer>
+  </form>
+</dialog>
+
 <script src="demo-api.js"></script>
 <script src="app.js"></script>
 </body>

@@ -238,8 +238,18 @@
     }
     const source = ui.card && ui.card.source;
     if (!source) { box.textContent = ""; return; }
+    // Файл, который прислали, можно открыть (PDF и картинки) или скачать,
+    // пока заявка открыта: закрыли — сервер его удаляет. У примера пробника
+    // файла нет — только имя.
+    const fileActs = source.fileGone
+      ? `<span class="caption">Файл удалён — заявка закрыта</span>`
+      : source.fileUrl
+      ? `<span class="file-acts">${source.fileView
+          ? `<a class="link" href="${esc(source.fileUrl)}${source.fileUrl.startsWith("/") ? "?view=1" : ""}" target="_blank" rel="noopener">Открыть</a>` : ""}
+          <a class="link" href="${esc(source.fileUrl)}" download="${esc(source.fileName)}">Скачать${source.fileSize ? `, ${esc(source.fileSize)}` : ""}</a></span>` : "";
     const chip = source.kind === "file"
-      ? `<div class="file-chip"><span class="file-kind">${esc(fileKind(source.fileName))}</span><span class="file-name">${esc(source.fileName)}</span></div>`
+      ? `<div class="file-chip"><span class="file-kind">${esc(fileKind(source.fileName))}</span>
+          <span class="file-about"><span class="file-name">${esc(source.fileName)}</span>${fileActs}</span></div>`
       : "";
     box.innerHTML = chip + esc(source.text);
   }
@@ -812,6 +822,24 @@
 
   // --- окна: клиент, доставка, заказ --------------------------------------
 
+  /**
+   * Подтверждение необратимого — окном в виде портала, а не системным
+   * confirm() с адресом туннеля в шапке. Ответ: "ok" — красная кнопка,
+   * "alt" — вторая, null — закрыли (Esc). Фокус — на безопасной кнопке.
+   */
+  const confirmDialog = $("#confirm-dialog");
+  function ask({ title, text, ok, alt }) {
+    $("#confirm-title").textContent = title;
+    $("#confirm-text").textContent = text;
+    $("#confirm-ok").textContent = ok;
+    $("#confirm-alt").textContent = alt;
+    confirmDialog.returnValue = "";
+    confirmDialog.showModal();
+    $("#confirm-alt").focus();
+    return new Promise((resolve) => confirmDialog.addEventListener("close",
+      () => resolve(confirmDialog.returnValue || null), { once: true }));
+  }
+
   const companyDialog = $("#company-dialog");
   const deliveryDialog = $("#delivery-dialog");
   const orderDialog = $("#order-dialog");
@@ -983,13 +1011,15 @@
 
   async function startIntake() {
     if (live()) {
-      const ok = window.confirm(
-        `Заявка №${ui.card.request_id} ещё не оформлена. Отменить её и начать новую? Корзина на портале очистится.\n\n` +
-        "Если клиент просто дописал позиции — нажмите «Отмена»: открою «Дослать позиции».");
-      if (!ok) {
-        showSide("composer");
-        return;
-      }
+      const answer = await ask({
+        title: `Заявка №${ui.card.request_id} ещё не оформлена`,
+        text: "Новая заявка отменит эту, корзина на портале очистится.\n" +
+              "Если клиент просто дописал позиции — дошлите их в эту заявку.",
+        ok: "Отменить и начать новую",
+        alt: "Дослать позиции",
+      });
+      if (answer === "alt") showSide("composer");
+      if (answer !== "ok") return;
       await run(() => api.cancel(setStep));
     }
     Object.assign(ui, { view: "intake", open: null, mode: {}, ask: {}, found: {}, filter: "all", files: [], invoice: null, error: null });
@@ -1080,9 +1110,14 @@
     delivery: openDelivery,
     order: openOrder,
     "order-note": () => say(api.orderNote, "warn"),
-    cancel: () => {
-      if (!window.confirm(`Отменить заявку №${ui.card.request_id}? Корзина на портале очистится.`)) return;
-      run(() => api.cancel(setStep));
+    cancel: async () => {
+      const answer = await ask({
+        title: `Отменить заявку №${ui.card.request_id}?`,
+        text: "Корзина на портале очистится.",
+        ok: "Отменить заявку",
+        alt: "Вернуться к заявке",
+      });
+      if (answer === "ok") run(() => api.cancel(setStep));
     },
     keep: () => run(() => api.keep(setStep)),
     spec: () => run(() => api.saveList("spec", setStep), (res) => ui.files.push(res.file)),

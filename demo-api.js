@@ -284,6 +284,12 @@
   /** Карточка целиком — то, что потом отдаст сервер. */
   function view() {
     const d = draft;
+    // Заявка закрыта — файл больше не нужен, как на сервере.
+    if (d.status !== "draft" && d.source.fileUrl) {
+      URL.revokeObjectURL(d.source.fileUrl);
+      ["fileUrl", "fileView", "fileSize"].forEach((field) => delete d.source[field]);
+      d.source.fileGone = true;
+    }
     const matches = d.matches.map((m) => ({
       ...structuredClone(m),
       chosen: m.chosen ? present(m.chosen) : null,
@@ -393,7 +399,16 @@
         onStep(`Ищу на портале: ${i} из ${matches.length}…`);
         await wait(120);
       }
-      draft = newDraft(matches, structuredClone(source), activeCompany);
+      const kept = structuredClone(source);
+      // Свой файл пробник отдаёт обратно из памяти браузера, как сервер — присланный.
+      if (source.file instanceof Blob) {
+        delete kept.file;
+        kept.fileUrl = URL.createObjectURL(source.file);
+        kept.fileView = /^(application\/pdf|image\/(png|jpeg|gif|webp))$/.test(source.file.type);
+        const size = source.file.size;
+        kept.fileSize = size >= 1048576 ? `${(size / 1048576).toFixed(1)} МБ` : `${Math.max(1, Math.floor(size / 1024))} КБ`;
+      }
+      draft = newDraft(matches, kept, activeCompany);
       await rebuild(onStep);
       return { draft: view(), said: parseSaid(source, own) };
     },
