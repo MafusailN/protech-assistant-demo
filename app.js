@@ -368,23 +368,25 @@
       ? `${qty(position.quantity)} ${esc(position.unit)}`
       : `<span class="qty-none">не указано</span>`;
 
+    // Строку отменяют, и она свёрнута: ход виден здесь же, на месте «что
+    // сделать», — как в раскрытой строке (`busyLine`), а не только плашкой.
+    const working = ui.busy && ui.busyRow === match.number && !open;
+    const task = (html) => (working ? busyLine() : html);
     let product;
     if (match.chosen) {
       product = `<div class="prod-name">${esc(match.chosen.name)}${tagsHtml(match.chosen, match)}</div>` +
                 `<div class="meta">${metaHtml(match.chosen)}</div>`;
-      if (match.needs_quantity) product += todo("attention", "Задать количество");
-      else if (match.mark === "attention") product += `<p class="reason">${esc(match.reason)}</p>${todo("attention", "Проверить подбор")}`;
+      if (match.needs_quantity) product += task(todo("attention", "Задать количество"));
+      else if (match.mark === "attention") product += `<p class="reason">${esc(match.reason)}</p>${task(todo("attention", "Проверить подбор"))}`;
+      else if (working) product += busyLine();
     } else if (match.mark === "retry") {
-      product = `<p class="reason">Портал не ответил на поиск — товар, скорее всего, есть.</p>${todo("retry", "Повторить поиск")}`;
+      product = `<p class="reason">Портал не ответил на поиск — товар, скорее всего, есть.</p>${task(todo("retry", "Повторить поиск"))}`;
     } else if (match.mark === "attention") {
       product = `<p class="reason">${esc(match.reason)}.</p>` +
-                todo("attention", `Выбрать: ${plural(match.alternatives.length, "вариант", "варианта", "вариантов")}`);
+                task(todo("attention", `Выбрать: ${plural(match.alternatives.length, "вариант", "варианта", "вариантов")}`));
     } else {
       // Нечем закрыть строку — отменить её можно прямо отсюда, не раскрывая.
-      // Пока её отменяют, ход виден здесь же, на месте кнопок, — как в
-      // раскрытой строке (`busyLine`), а не только плашкой над полосой.
-      const working = ui.busy && ui.busyRow === match.number && ui.open !== match.number;
-      product = `<p class="reason">${esc(match.reason)}.</p>` + (working ? busyLine() : `<div class="todo-row">
+      product = `<p class="reason">${esc(match.reason)}.</p>` + task(`<div class="todo-row">
         <span class="todo todo-missing">${icon("missing", "icon-18")}Указать товар</span>
         <button type="button" class="todo todo-drop" data-act="remove"${ui.busy ? " disabled" : ""}>${icon("delete", "icon-18")}Отменить строку</button></div>`);
     }
@@ -1233,11 +1235,17 @@
     // Отменить можно и из свёрнутой строки («нет в каталоге») — раскрытую другую не закрываем.
     remove: (el, n) => {
       if (ui.busy) return;
-      // Какую строку отменяют — чтобы ход показать в ней (`rowHtml`).
-      ui.busyRow = n;
-      ui.leaving = n;
-      return run(() => api.removeLine(n, setStep), () => { if (ui.open === n) ui.open = null; })
-        .finally(() => { ui.busyRow = null; });
+      const drop = () => {
+        // Какую строку отменяют — чтобы ход показать в ней (`rowHtml`).
+        ui.busyRow = n;
+        ui.leaving = n;
+        return run(() => api.removeLine(n, setStep), () => { if (ui.open === n) ui.open = null; })
+          .finally(() => { ui.busyRow = null; });
+      };
+      // Раскрытая строка сначала сворачивается, как от «Свернуть», и только
+      // потом уходит: варианты и строка разом пропадали — терялось, где был.
+      if (ui.open === n) foldRow(n, drop);
+      else drop();
     },
     delivery: openDelivery,
     order: openOrder,
@@ -1367,14 +1375,18 @@
    * схлопывание у конца списка роняло страницу рывком: прокручивать стало
    * некуда, и браузер сдёргивал её вниз. Теперь страница опускается вместе
    * со схлопыванием, плавно.
+   *
+   * `then` — что делать со свёрнутой строкой дальше (её отмена): тогда без
+   * подсветки «вот она» — строка сейчас уйдёт сама.
    */
-  function foldRow(number) {
+  function foldRow(number, then) {
     const fold = () => {
       ui.open = null; ui.ask = {}; ui.found = {};
       render();
       const row = main.querySelector(`tr.row[data-number="${number}"]`);
+      if (row) row.focus({ preventScroll: true });
+      if (then) return then();
       if (!row) return;
-      row.focus({ preventScroll: true });
       row.classList.add("just-closed");
       setTimeout(() => row.classList.remove("just-closed"), 1600);
     };
