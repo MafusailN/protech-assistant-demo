@@ -69,6 +69,7 @@
     error: null,         // {number, text} — ошибка у формы строки
     busy: false,
     busyRow: null,       // номер строки, которую отменяют из свёрнутого вида
+    leaving: null,       // номер строки, которая уходит: убрать её плавно (`removeRow`)
     step: "",
     files: [],           // что уже пришло файлами по этой заявке
     invoice: null,
@@ -198,12 +199,48 @@
       say(error.message, "error");
     } finally {
       working(false);
-      ui.busy = false;
-      render();
+      // Убранная строка уходит плавно: гаснет, а нижние подъезжают на её
+      // место. Мгновенно исчезнув, она сдёргивала всё под собой вверх.
+      const leaving = ui.leaving;
+      ui.leaving = null;
+      if (leaving != null && ui.view === "card" && view === "card"
+          && !ui.card.matches.some((m) => m.number === leaving)) {
+        await removeRow(leaving, () => { ui.busy = false; });
+      } else {
+        ui.busy = false;
+        render();
+      }
       // Сменился экран (заказ оформлен, заявка закрыта) — показываем его с начала.
       if (ui.view !== view) window.scrollTo({ top: 0 });
       // Бот сам перешёл к следующей нерешённой строке — показываем её.
       else if (ui.open != null && ui.open !== opened) revealRow(ui.open);
+    }
+  }
+
+  /**
+   * Строку убрали: она гаснет на месте, потом перерисовка, и строки ниже
+   * плавно доезжают с прежних мест (запомнили, где стояли, — сдвиг
+   * обратно — до нуля). `before` — что сделать перед перерисовкой.
+   */
+  async function removeRow(number, before) {
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const row = main.querySelector(`tr.row[data-number="${number}"]`);
+    const parts = row ? [row, row.nextElementSibling].filter((el) => el && (el === row || el.matches("tr.detail"))) : [];
+    if (!reduce && parts.length) {
+      await Promise.all(parts.map((el) => el.animate([{ opacity: 1 }, { opacity: 0 }],
+        { duration: 180, easing: "ease-out", fill: "forwards" }).finished));
+    }
+    const was = new Map([...main.querySelectorAll("tr.row")].map((r) => [r.dataset.number, r.getBoundingClientRect().top]));
+    before();
+    render();
+    if (reduce) return;
+    for (const r of main.querySelectorAll("tr.row")) {
+      const top = was.get(r.dataset.number);
+      if (top == null) continue;
+      const dy = top - r.getBoundingClientRect().top;
+      if (Math.abs(dy) < 1) continue;
+      r.animate([{ transform: `translateY(${dy}px)` }, { transform: "none" }],
+        { duration: 280, easing: "cubic-bezier(.2, .8, .2, 1)" });
     }
   }
 
@@ -1195,8 +1232,10 @@
     retry: (el, n) => run(() => api.retry(n, setStep), lineDone(n)),
     // Отменить можно и из свёрнутой строки («нет в каталоге») — раскрытую другую не закрываем.
     remove: (el, n) => {
+      if (ui.busy) return;
       // Какую строку отменяют — чтобы ход показать в ней (`rowHtml`).
       ui.busyRow = n;
+      ui.leaving = n;
       return run(() => api.removeLine(n, setStep), () => { if (ui.open === n) ui.open = null; })
         .finally(() => { ui.busyRow = null; });
     },
