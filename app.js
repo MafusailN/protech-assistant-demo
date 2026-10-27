@@ -1224,11 +1224,17 @@
   });
 
   function toggleRow(number) {
+    // Выше раскрыта другая строка — она схлопнется, и нажатая отскочила бы
+    // вверх рывком. Держим нажатую под курсором, дальше она плавно едет сама.
+    const at = (n) => main.querySelector(`tr.row[data-number="${n}"]`)?.getBoundingClientRect().top;
+    const before = at(number);
     ui.open = ui.open === number ? null : number;
     ui.error = null;
     ui.ask = {};
     ui.found = {};
     render();
+    const after = at(number);
+    if (before != null && after != null) window.scrollBy(0, after - before);
     if (ui.open != null) revealRow(ui.open);
   }
 
@@ -1237,8 +1243,34 @@
     const row = main.querySelector(`tr.row[data-number="${number}"]`);
     if (!row) return;
     row.focus({ preventScroll: true });
+    const margin = parseFloat(getComputedStyle(row).scrollMarginTop) || 0;
+    glide(window.scrollY + row.getBoundingClientRect().top - margin);
+  }
+
+  /**
+   * Плавная прокрутка окна к `to`, затем `done`. Своя, а не `behavior: "smooth"`:
+   * браузер то докручивал плавно, то перескакивал рывком, и не скажешь, когда
+   * приехал.
+   */
+  function glide(to, done) {
+    const from = window.scrollY;
+    to = Math.max(0, Math.min(to, document.documentElement.scrollHeight - window.innerHeight));
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    row.scrollIntoView({ block: "start", behavior: reduce ? "auto" : "smooth" });
+    if (reduce || Math.abs(to - from) < 2) {
+      window.scrollTo(0, to);
+      if (done) done();
+      return;
+    }
+    const time = Math.min(600, 250 + Math.abs(to - from) * 0.3);
+    const start = performance.now();
+    const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
+    const frame = (now) => {
+      const t = Math.min(1, (now - start) / time);
+      window.scrollTo(0, from + (to - from) * ease(t));
+      if (t < 1) requestAnimationFrame(frame);
+      else if (done) done();
+    };
+    requestAnimationFrame(frame);
   }
 
   /**
@@ -1263,24 +1295,7 @@
     const barTop = checkoutWrap.hidden || getComputedStyle(checkoutWrap).position !== "fixed"
       ? window.innerHeight : checkoutWrap.getBoundingClientRect().top;
     const want = Math.min(Math.max(bottom, rect.height + 16), barTop - 16);
-    const from = window.scrollY;
-    const to = from + rect.bottom - want;
-    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (reduce || Math.abs(to - from) < 2) {
-      window.scrollTo(0, to);
-      return fold();
-    }
-    // Своя анимация, а не `behavior: "smooth"`: свернуть надо ровно по приезде.
-    const time = Math.min(600, 250 + Math.abs(to - from) * 0.3);
-    const start = performance.now();
-    const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
-    const frame = (now) => {
-      const t = Math.min(1, (now - start) / time);
-      window.scrollTo(0, from + (to - from) * ease(t));
-      if (t < 1) requestAnimationFrame(frame);
-      else fold();
-    };
-    requestAnimationFrame(frame);
+    glide(window.scrollY + rect.bottom - want, fold);
   }
 
   main.addEventListener("submit", (event) => {
