@@ -387,7 +387,7 @@ table.lines { width: 100%; border-collapse: separate; border-spacing: 0; font-si
 .form-error { display: flex; align-items: center; gap: 6px; font-size: 14px; color: var(--error); }
 .hint { font-size: 13px; line-height: 18px; color: var(--ink-3); }
 .detail-foot { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px 16px; }
-.ways { display: flex; flex-wrap: wrap; gap: 4px 18px; }
+.ways { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 /* Ход работы — там, где нажали: панель итога в конце листа может быть не видна. */
 .busy-line { display: inline-flex; align-items: center; gap: 8px; min-height: 30px; font-size: 14px; line-height: 20px; color: var(--ink-2); }
 
@@ -447,6 +447,10 @@ table.lines { width: 100%; border-collapse: separate; border-spacing: 0; font-si
 .pbtn-primary:hover { border-color: var(--primary-hover); background: var(--primary-hover); }
 /* Отмена заявки — последней в полосе, красной: с 27.10.2026 по просьбе
    владельца стоит со всеми действиями, а не наверху листа. */
+/* Действия раскрытой строки — те же кнопки, чуть ниже. */
+.pbtn-sm { min-height: 32px; padding: 0 12px 0 10px; font-size: 13px; }
+.pbtn-ghost { border-color: transparent; background: transparent; color: var(--ink-2); }
+.pbtn-ghost:hover { border-color: transparent; background: rgba(0, 0, 0, .05); }
 /* Чего не хватает до заказа (способ получения): значок жёлтый, как у спорных строк. */
 .pbtn-todo .icon { color: var(--warn-icon); }
 .pbtn-danger { color: var(--error); }

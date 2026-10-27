@@ -39,6 +39,10 @@
     target: "M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm8.94 3A8.994 8.994 0 0 0 13 3.06V1h-2v2.06A8.994 8.994 0 0 0 3.06 11H1v2h2.06A8.994 8.994 0 0 0 11 20.94V23h2v-2.06A8.994 8.994 0 0 0 20.94 13H23v-2h-2.06zM12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z",
     swap: "M6.99 11 3 15l3.99 4v-3H14v-2H6.99v-3zM21 9l-3.99-4v3H10v2h7.01v3L21 9z",
     delete: "M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM8 9h8v10H8V9zm7.5-5-1-1h-5l-1 1H5v2h14V4z",
+    link: "M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z",
+    collapse: "M12 8l-6 6 1.41 1.41L12 10.83l4.59 4.58L18 14z",
+    back: "M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z",
+    qty: "M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z",
   };
   const icon = (name, cls = "") =>
     `<svg class="icon ${cls}" viewBox="0 0 24 24" aria-hidden="true"><path d="${ICONS[name]}"/></svg>`;
@@ -469,11 +473,16 @@
     const ways = [];
     if (match.mark !== "retry" && !match.needs_quantity) {
       const searching = mode === "find" || (!mode && !found && !hasOptions && !match.chosen);
-      if (mode) ways.push(`<button type="button" class="link" data-act="mode" data-mode="">${hasOptions || found ? "К вариантам" : "Назад"}</button>`);
-      else if (found) ways.push(`<button type="button" class="link" data-act="unfind">Отменить поиск</button>`);
-      if (!searching) ways.push(`<button type="button" class="link" data-act="mode" data-mode="find">Указать товар: ссылка или артикул</button>`);
-      if (mode !== "custom") ways.push(`<button type="button" class="link" data-act="mode" data-mode="custom">Завести свою позицию</button>`);
-      if (match.chosen && mode !== "qty") ways.push(`<button type="button" class="link" data-act="mode" data-mode="qty">Изменить количество</button>`);
+      // Кнопками в рамке, как в полосе итога: ссылками их не замечали
+      // (вариант «А», владелец 27.10.2026). Что принимает «Указать товар» —
+      // ссылку, артикул или код — говорит сама форма поиска.
+      const way = (act, name, text, extra = "") =>
+        `<button type="button" class="pbtn pbtn-sm" data-act="${act}"${extra}>${icon(name, "icon-18")}${text}</button>`;
+      if (mode) ways.push(way("mode", "back", hasOptions || found ? "К вариантам" : "Назад", ' data-mode=""'));
+      else if (found) ways.push(way("unfind", "close", "Отменить поиск"));
+      if (!searching) ways.push(way("mode", "link", "Указать товар", ' data-mode="find"'));
+      if (mode !== "custom") ways.push(way("mode", "add", "Своя позиция", ' data-mode="custom"'));
+      if (match.chosen && mode !== "qty") ways.push(way("mode", "qty", "Изменить количество", ' data-mode="qty"'));
     }
     const error = ui.error && ui.error.number === match.number
       ? `<p class="form-error" role="alert">${icon("missing", "icon-18")}${esc(ui.error.text)}</p>` : "";
@@ -486,8 +495,8 @@
       <div class="detail-foot">
         <div class="ways">${foot}</div>
         <div class="ways">
-          <button type="button" class="btn btn-danger btn-sm" data-act="remove">Отменить строку</button>
-          <button type="button" class="btn btn-ghost btn-sm" data-act="close">Свернуть</button>
+          <button type="button" class="pbtn pbtn-sm pbtn-danger" data-act="remove">${icon("delete", "icon-18")}Отменить строку</button>
+          <button type="button" class="pbtn pbtn-sm pbtn-ghost" data-act="close">${icon("collapse", "icon-18")}Свернуть</button>
         </div>
       </div>
     </div>`;
