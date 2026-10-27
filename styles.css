@@ -346,7 +346,15 @@ table.lines { width: 100%; border-collapse: separate; border-spacing: 0; font-si
 .todo-attention { background: var(--surface); color: var(--ink); }
 .todo-attention .icon { color: var(--warn-icon); }
 .todo-retry { background: var(--primary-10); color: var(--primary); }
-.todo-missing { background: var(--error-10); color: #93000A; }
+/* В каталоге нет: «Указать товар» жёлтым (второе исключение из «жёлтый —
+   только значки», по просьбе владельца 27.10.2026), рядом сразу красная
+   «Отменить строку» — строку, которую нечем закрыть, убирают одним нажатием. */
+.todo-missing { background: var(--warn-10); color: var(--warn); }
+.todo-missing .icon { color: var(--warn-icon); }
+.todo-row:has(.todo-drop) { display: flex; flex-wrap: wrap; gap: 8px; }
+.todo-drop { border: 1px solid transparent; background: var(--error-10); color: var(--error); font: inherit; cursor: pointer; }
+.todo-drop:hover { border-color: var(--error); }
+.todo-drop:disabled { background: rgba(0, 0, 0, .06); color: var(--ink-4); border-color: transparent; cursor: not-allowed; }
 
 /* --- раскрытая строка ----------------------------------------------------- */
 
@@ -407,18 +415,6 @@ table.lines { width: 100%; border-collapse: separate; border-spacing: 0; font-si
 .table-wrap:last-child .lines tbody > tr:last-child,
 .table-wrap:last-child .lines tbody > tr:last-child > td { border-bottom-color: transparent; }
 
-/* Отмена заявки — наверху листа, как «Очистить корзину» у портала: подальше
-   от «Оформить заказ». Набрана как действия портала над таблицей. */
-.tool {
-  display: inline-flex; align-items: center; gap: 4px; align-self: center;
-  padding: 4px 8px 4px 6px; border: 0; border-radius: var(--radius); background: none;
-  color: var(--link); font: 700 14px/20px var(--cond); letter-spacing: .04em; text-transform: uppercase; cursor: pointer;
-}
-.tool:hover { background: var(--primary-5); }
-.tool-danger { color: var(--error); }
-.tool-danger:hover { background: #FDF0EE; }
-.tool:disabled, .tool:disabled:hover { background: none; color: var(--ink-4); cursor: not-allowed; }
-
 .todo-row { margin-top: 8px; }
 
 /* --- полоса итога: как у портала ----------------------------------------- */
@@ -453,6 +449,10 @@ table.lines { width: 100%; border-collapse: separate; border-spacing: 0; font-si
 .pbtn:hover { border-color: var(--primary); background: var(--primary-5); }
 .pbtn-primary { border-color: var(--primary); background: var(--primary); color: #fff; }
 .pbtn-primary:hover { border-color: var(--primary-hover); background: var(--primary-hover); }
+/* Отмена заявки — последней в полосе, красной: с 27.10.2026 по просьбе
+   владельца стоит со всеми действиями, а не наверху листа. */
+.pbtn-danger { color: var(--error); }
+.pbtn-danger:hover { border-color: var(--error); background: #FDF0EE; }
 .pbtn:disabled, .pbtn:disabled:hover { border-color: transparent; background: rgba(0, 0, 0, .06); color: var(--ink-4); cursor: not-allowed; }
 
 .step-chip {
@@ -538,6 +538,8 @@ table.lines { width: 100%; border-collapse: separate; border-spacing: 0; font-si
 .side-log { flex: 1 1 auto; min-height: 180px; overflow: hidden; }
 .log {
   flex: 1; min-height: 0; overflow-y: auto; margin: 0; padding: 20px 4px 0 0; list-style: none;
+  /* Новая запись подъезжает, а не прыгает. */
+  scroll-behavior: smooth;
   display: flex; flex-direction: column; gap: 12px; font-size: 13px; line-height: 19px; color: var(--ink-2);
   /* Ход работы открыт на последней записи, и верхняя видимая резалась на полуслове.
      Верх гаснет: обрезанное читается как «выше есть ещё», а отступ сверху
@@ -553,7 +555,10 @@ table.lines { width: 100%; border-collapse: separate; border-spacing: 0; font-si
 .log .t-error .icon { color: var(--error); }
 .log .t-demo { color: var(--ink-2); }
 .log .t-demo .icon { color: var(--warn-icon); }
-.log .t-busy { color: var(--ink); }
+/* Вращаемый значок ожидания на углах повёрнутого квадрата шире себя —
+   без обрезки высота списка ходила на 4 px в такт вращению и список,
+   прижатый к низу, трясся. Видимый круг в квадрат помещается. */
+.log .t-busy { color: var(--ink); overflow: hidden; }
 .log .spinner { margin-top: 1px; }
 .log time { display: block; font-size: 12px; line-height: 16px; color: var(--ink-4); }
 
@@ -735,4 +740,5 @@ dialog::backdrop { background: rgba(0, 0, 0, .4); }
 @media (prefers-reduced-motion: reduce) {
   .spinner { animation: none; border-top-color: var(--primary); }
   .bar span, .btn, .pbtn, .side { transition: none; }
+  .log { scroll-behavior: auto; }
 }

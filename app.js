@@ -157,6 +157,8 @@
   function setStep(text) {
     ui.step = text;
     if (ui.busy) document.querySelectorAll("[data-step]").forEach((el) => { el.textContent = text; });
+    // Ход стал длиннее строки — строка работы растёт вниз; держим её на виду.
+    if ($("#log-busy")) logList.scrollTop = logList.scrollHeight;
     if (ui.view === "parsing") renderSteps(text);
   }
 
@@ -304,7 +306,10 @@
       product = `<p class="reason">${esc(match.reason)}.</p>` +
                 todo("attention", `Выбрать: ${plural(match.alternatives.length, "вариант", "варианта", "вариантов")}`);
     } else {
-      product = `<p class="reason">${esc(match.reason)}.</p>${todo("missing", "Указать товар")}`;
+      // Нечем закрыть строку — отменить её можно прямо отсюда, не раскрывая.
+      product = `<p class="reason">${esc(match.reason)}.</p><div class="todo-row">
+        <span class="todo todo-missing">${icon("missing", "icon-18")}Указать товар</span>
+        <button type="button" class="todo todo-drop" data-act="remove"${ui.busy ? " disabled" : ""}>${icon("delete", "icon-18")}Отменить строку</button></div>`;
     }
 
     let cartQty = "—";
@@ -513,8 +518,6 @@
           ${removedHtml(card)}
         </div>` : "";
 
-    // Отмена заявки — наверху листа, как «Очистить корзину» у портала:
-    // подальше от «Оформить заказ», который живёт в полосе итога.
     main.innerHTML = `
       <section class="sheet">
         <header class="sheet-head">
@@ -522,7 +525,6 @@
             <h2>Заявка №${card.request_id}</h2>
             <span class="caption">${plural(card.matches.length, "позиция", "позиции", "позиций")} ${esc(from)} · в корзине ${card.lines.length}</span>
             ${card.produced.length ? `<span class="produced">${icon("check", "icon-16")}Уже создано: ${esc(card.produced.join(", "))}</span>` : ""}
-            <button type="button" class="tool tool-danger" data-act="cancel">${icon("delete", "icon-18")}Отменить заявку</button>
           </div>
           <div class="chips" role="group" aria-label="Какие строки показать">${chipsHtml(card)}</div>
         </header>
@@ -574,6 +576,7 @@
           <button type="button" class="pbtn" data-act="offer"${off}>КП</button>
           <button type="button" class="pbtn" data-act="keep"${off}>Оставить в корзине</button>
           ${card.produced.length ? `<button type="button" class="pbtn" data-act="done">Готово, закрыть</button>` : ""}
+          <button type="button" class="pbtn pbtn-danger" data-act="cancel">${icon("delete", "icon-18")}Отменить заявку</button>
         </div>
         <div class="checkout-sums">
           <div class="sum-col"><span class="caption">Получение</span>
@@ -1072,7 +1075,8 @@
     },
     answer: (el, n) => run(() => api.pick(n, el.dataset.id, { analog: el.dataset.analog === "true" }, setStep), lineDone(n)),
     retry: (el, n) => run(() => api.retry(n, setStep), lineDone(n)),
-    remove: (el, n) => run(() => api.removeLine(n, setStep), () => { ui.open = null; }),
+    // Отменить можно и из свёрнутой строки («нет в каталоге») — раскрытую другую не закрываем.
+    remove: (el, n) => run(() => api.removeLine(n, setStep), () => { if (ui.open === n) ui.open = null; }),
     delivery: openDelivery,
     order: openOrder,
     "order-note": () => say(api.orderNote, "warn"),
@@ -1117,7 +1121,9 @@
     const button = event.target.closest("[data-act]");
     if (!button || button.disabled) return false;
     const detail = button.closest("tr.detail");
-    const number = detail ? Number(detail.previousElementSibling.dataset.number) : null;
+    const row = button.closest("tr.row");
+    const number = detail ? Number(detail.previousElementSibling.dataset.number)
+      : row ? Number(row.dataset.number) : null;
     actions[button.dataset.act](button, number);
     return true;
   }
