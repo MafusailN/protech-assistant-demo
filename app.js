@@ -134,6 +134,13 @@
   }
   const say = (text, tone) => log([{ text, tone }]);
 
+  /** Новая заявка начинает ход заново — как и журнал на сервере (`parse`). */
+  function clearLog() {
+    logList.replaceChildren();
+    Object.assign(side, { unread: 0, alarm: false });
+    renderUnread();
+  }
+
   /**
    * Ход долгой работы — последней строкой журнала, как служебное сообщение
    * `_Working` в боте: по окончании её сменяет сказанное. Панель итога
@@ -1070,6 +1077,7 @@
           file: intake.file.blob || null, ...(samples.excel ? {} : { text: intake.text }) }
       : { kind: "text", title: "Текст заявки", text: intake.text };
     Object.assign(ui, { view: "parsing", steps: [], busy: true, step: "Читаю заявку…" });
+    clearLog();
     startProgress();
     render();
     // Ход разбора — и последней строкой «Хода работы», как у любой долгой
@@ -1105,10 +1113,7 @@
       // «Свернуть» стоит под длинным списком вариантов: свернули — и строка
       // уезжала за верх экрана, а под курсором оказывались чужие строки.
       // Возвращаем свёрнутую строку туда, где была кнопка, и подсвечиваем.
-      const was = el.getBoundingClientRect().bottom;
-      ui.open = null; ui.ask = {}; ui.found = {};
-      render();
-      settleRow(n, was);
+      foldRow(n, el.getBoundingClientRect().bottom);
     },
     mode: (el, n) => {
       ui.mode[n] = el.dataset.mode;
@@ -1236,19 +1241,46 @@
     row.scrollIntoView({ block: "start", behavior: reduce ? "auto" : "smooth" });
   }
 
-  /** Свёрнутая строка — низом на высоту `bottom` окна, не под шапкой и не под полосой итога. */
-  function settleRow(number, bottom) {
+  /**
+   * Свернуть строку так, чтобы она встала низом на высоту `bottom` окна (не под
+   * шапкой и не под полосой итога). Как раскрытие наоборот: сначала экран плавно
+   * едет к строке — видно, куда она ушла, — и только там раскрытая часть
+   * убирается. Раскрытое лежит под строкой, поэтому строка при этом не сдвигается.
+   */
+  function foldRow(number, bottom) {
+    const fold = () => {
+      ui.open = null; ui.ask = {}; ui.found = {};
+      render();
+      const row = main.querySelector(`tr.row[data-number="${number}"]`);
+      if (!row) return;
+      row.focus({ preventScroll: true });
+      row.classList.add("just-closed");
+      setTimeout(() => row.classList.remove("just-closed"), 1600);
+    };
     const row = main.querySelector(`tr.row[data-number="${number}"]`);
-    if (!row) return;
-    row.focus({ preventScroll: true });
+    if (!row) return fold();
     const rect = row.getBoundingClientRect();
     const barTop = checkoutWrap.hidden || getComputedStyle(checkoutWrap).position !== "fixed"
       ? window.innerHeight : checkoutWrap.getBoundingClientRect().top;
     const want = Math.min(Math.max(bottom, rect.height + 16), barTop - 16);
+    const from = window.scrollY;
+    const to = from + rect.bottom - want;
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    window.scrollBy({ top: rect.bottom - want, behavior: reduce ? "auto" : "smooth" });
-    row.classList.add("just-closed");
-    setTimeout(() => row.classList.remove("just-closed"), 1600);
+    if (reduce || Math.abs(to - from) < 2) {
+      window.scrollTo(0, to);
+      return fold();
+    }
+    // Своя анимация, а не `behavior: "smooth"`: свернуть надо ровно по приезде.
+    const time = Math.min(600, 250 + Math.abs(to - from) * 0.3);
+    const start = performance.now();
+    const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
+    const frame = (now) => {
+      const t = Math.min(1, (now - start) / time);
+      window.scrollTo(0, from + (to - from) * ease(t));
+      if (t < 1) requestAnimationFrame(frame);
+      else fold();
+    };
+    requestAnimationFrame(frame);
   }
 
   main.addEventListener("submit", (event) => {
