@@ -648,6 +648,8 @@ dialog::backdrop { background: rgba(0, 0, 0, .4); }
 #confirm-text { white-space: pre-line; }
 .dialog-body { display: flex; flex-direction: column; gap: 14px; padding: 6px 24px 16px; overflow: auto; }
 .dialog-foot { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; padding: 12px 24px 20px; border-top: 1px solid var(--line); }
+/* На кнопке оформления — имя клиента; длинное переносится, а не обрезается. */
+#order-place { white-space: normal; text-align: center; max-width: 100%; padding-top: 8px; padding-bottom: 8px; }
 
 .company-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .company-list button {

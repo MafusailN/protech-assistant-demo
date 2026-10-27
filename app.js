@@ -607,11 +607,7 @@
     const onRequest = card.on_request.length
       ? `<div class="sum-col" title="В сумму не входят — цену поставят в 1С"><span class="caption">По запросу</span>
           <span class="sum-value">${plural(card.on_request.length, "позиция", "позиции", "позиций")}${icon("info", "icon-16")}</span></div>` : "";
-    // Сервер может ещё не оформлять заказ (`orderNote`): тогда кнопка
-    // говорит это на себе, а нажатие объясняет, где оформить.
-    const order = api.orderNote
-      ? `<button type="button" class="pbtn pbtn-primary" data-act="order-note" title="${esc(api.orderNote)}"${card.ready ? "" : " disabled"}>Оформить заказ — в боте</button>`
-      : `<button type="button" class="pbtn pbtn-primary" data-act="order" aria-describedby="step-chip"${card.ready ? "" : " disabled"}>Оформить заказ</button>`;
+    const order = `<button type="button" class="pbtn pbtn-primary" data-act="order" aria-describedby="step-chip"${card.ready ? "" : " disabled"}>Оформить заказ</button>`;
     checkout.innerHTML = `
       <div class="container checkout-in">
         <div class="checkout-acts">
@@ -737,18 +733,25 @@
 
   function renderOrdered() {
     const card = ui.card;
-    const number = card.orders[0];
+    // Продавцов в корзине бывает несколько — тогда и заказов несколько.
+    const numbers = card.orders.map((n) => `№${n}`).join(", ");
+    const title = card.orders.length > 1 ? `Оформлено заказов: ${card.orders.length} — ${numbers}`
+      : card.orders.length ? `Заказ оформлен, ${numbers}` : "Заказ оформлен";
     const onRequest = card.on_request.length ? ` <span class="muted">без ${plural(card.on_request.length, "позиции", "позиций", "позиций")} по запросу</span>` : "";
-    const invoice = ui.invoice
+    // Сервер счёт не ждёт (`invoiceNote`): он приходит в «Заказы» на портале.
+    const invoice = api.invoiceNote
+      ? `<div class="invoice">${icon("info", "icon-20")}<span>${esc(api.invoiceNote)}${api.portalUrl
+          ? ` <a href="${esc(api.portalUrl)}" target="_blank" rel="noopener">Открыть портал</a>` : ""}</span></div>`
+      : ui.invoice
       ? `<div class="files"><div class="file-card"><span class="file-kind pdf">PDF</span><span class="file-name">${esc(ui.invoice.name)}</span>
          <span class="file-size">${esc(ui.invoice.size)}</span><button type="button" class="btn btn-sm" data-act="download">${icon("download", "icon-18")} Скачать</button></div></div>`
       : `<div class="invoice"><span class="spinner" aria-hidden="true"></span>Жду счёт из 1С — обычно от одной до семи минут. Пришлю сюда файлом.</div>`;
     main.innerHTML = `
       <section class="panel">
         <div class="result-head"><span class="result-mark">${icon("ok")}</span>
-          <div><h2>Заказ оформлен, №${esc(number)}</h2><p class="caption">Заявка №${card.request_id} · ${new Date().toLocaleDateString("ru-RU")}</p></div></div>
+          <div><h2>${esc(title)}</h2><p class="caption">Заявка №${card.request_id} · ${new Date().toLocaleDateString("ru-RU")}</p></div></div>
         <dl class="facts-list">
-          <dt>Клиент</dt><dd>${esc(card.company_name)} <span class="muted">ИНН ${esc(card.company_inn)}</span></dd>
+          <dt>Клиент</dt><dd>${esc(card.company_name)}${card.company_inn ? ` <span class="muted">ИНН ${esc(card.company_inn)}</span>` : ""}</dd>
           <dt>Сумма</dt><dd>${money(card.total)}${onRequest}</dd>
           <dt>Получение</dt><dd>${esc(card.delivery_label)}</dd>
           <dt>Позиций</dt><dd>${card.lines.length}</dd>
@@ -772,9 +775,12 @@
       kept: ["Оставлено в корзине", "Корзина собрана на портале — дальше оформляйте на сайте. Подбор запомнил."],
       cancelled: ["Заявка отменена", "Корзина на портале очищена. Подбор по этой заявке в память не пошёл."],
       done: ["Заявка закрыта", `Созданное остаётся на портале: ${card.produced.join(", ")}.`],
+      failed: ["Заказ не оформлен", ""],
     };
-    const [title, lead] = texts[card.status] || ["Заявка закрыта", ""];
-    const cancelled = card.status === "cancelled";
+    const [title, fixed] = texts[card.status] || ["Заявка закрыта", ""];
+    // Почему закрыта, если словами экрана не сказать: сервер пишет сам (`note`).
+    const lead = card.note || fixed;
+    const cancelled = card.status === "cancelled" || card.status === "failed";
     main.innerHTML = `
       <section class="panel">
         <div class="result-head"><span class="result-mark${cancelled ? " is-neutral" : ""}">${icon(cancelled ? "close" : "ok")}</span>
@@ -980,7 +986,7 @@
     $("#order-body").innerHTML = `
       <div class="order-client">${icon("business")}
         <div><div class="label">Заказ уйдёт на</div><div class="name">${esc(card.company_name)}</div>
-          <div class="caption">ИНН ${esc(card.company_inn)}</div></div></div>
+          ${card.company_inn ? `<div class="caption">ИНН ${esc(card.company_inn)}</div>` : ""}</div></div>
       <dl class="facts-list">
         <dt>Позиций</dt><dd>${card.lines.length}</dd>
         <dt>Сумма</dt><dd>${money(card.total)}${onRequest}</dd>
@@ -989,8 +995,10 @@
       ${removed}
       <div class="field"><label class="label" for="order-comment">Комментарий к заказу для менеджера Протэк</label>
         <textarea id="order-comment" rows="4" placeholder="Сроки, объект, чего не хватает — всё, что важно поставщику">${esc(card.manager_comment)}</textarea></div>
-      <p class="hint">Уйдёт в заказ вместе со служебной подписью «Заявка с портала, менеджер: Анна Демо».</p>
+      <p class="hint">Уйдёт в заказ вместе со служебной подписью: откуда заявка и кто её вёл.</p>
       <p class="order-note" id="order-note" hidden></p>`;
+    // Клиент — и на самой кнопке: заказ на чужого из 1С не отменить.
+    $("#order-place").textContent = `Оформить заказ на ${card.company_name}`;
     const insert = $("#removed-insert");
     if (insert) {
       insert.addEventListener("click", () => {
@@ -1003,15 +1011,29 @@
     orderDialog.showModal();
   }
 
-  $("#order-place").addEventListener("click", async () => {
+  $("#order-place").addEventListener("click", async (event) => {
+    const button = event.currentTarget;
+    // Двойное нажатие не должно дать второй заказ: пока ждём ответа — кнопка гаснет.
+    if (button.disabled || ui.busy) return;
     const field = $("#order-comment");
+    const note = $("#order-note");
     // У пробника ответ сразу, у сервера — обещание; `await` годится для обоих.
-    const result = await api.setComment(field.value);
+    let result;
+    button.disabled = true;
+    try {
+      result = await api.setComment(field.value);
+    } catch (error) {
+      // Слишком длинный комментарий и прочее — здесь же, у поля: окно не закрываем.
+      note.innerHTML = `${icon("attention", "icon-18")}<span>${esc(error.message)}</span>`;
+      note.hidden = false;
+      return;
+    } finally {
+      button.disabled = false;
+    }
     ui.card = result.draft;
     if (result.note) {
       // Показываем то, что уйдёт, а не то, что написали, — и просим нажать ещё раз.
       field.value = result.comment;
-      const note = $("#order-note");
       note.innerHTML = `${icon("attention", "icon-18")}<span>${esc(result.note)} Проверьте текст и нажмите «Оформить заказ» ещё раз.</span>`;
       note.hidden = false;
       return;
@@ -1019,7 +1041,9 @@
     orderDialog.close();
     run(() => api.placeOrder(setStep), (res) => {
       ui.invoice = null;
-      const number = res.orders[0];
+      const number = (res.orders || [])[0];
+      // Сервер счёт не ждёт: он приходит в «Заказы» на портале (`invoiceNote`).
+      if (api.invoiceNote || !number || !res.draft || res.draft.status !== "confirmed") return;
       api.waitInvoice(number).then((got) => {
         log(got.said);
         if (ui.card && ui.card.orders[0] === number) { ui.invoice = got.file; render(); }
@@ -1165,7 +1189,6 @@
     remove: (el, n) => run(() => api.removeLine(n, setStep), () => { if (ui.open === n) ui.open = null; }),
     delivery: openDelivery,
     order: openOrder,
-    "order-note": () => say(api.orderNote, "warn"),
     cancel: async () => {
       const answer = await ask({
         title: `Отменить заявку №${ui.card.request_id}?`,
