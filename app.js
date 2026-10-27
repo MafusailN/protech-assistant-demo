@@ -1021,8 +1021,11 @@
       ? { kind: "file", title: "Файл заявки", ...(samples.excel || {}), fileName: intake.file.name,
           file: intake.file.blob || null, ...(samples.excel ? {} : { text: intake.text }) }
       : { kind: "text", title: "Текст заявки", text: intake.text };
-    Object.assign(ui, { view: "parsing", steps: [], busy: true });
+    Object.assign(ui, { view: "parsing", steps: [], busy: true, step: "Читаю заявку…" });
     render();
+    // Ход разбора — и последней строкой «Хода работы», как у любой долгой
+    // работы (`run`): иначе журнал пустовал, пока разбор не кончится.
+    working(true);
     try {
       const result = await api.parse(source, setStep);
       ui.card = result.draft;
@@ -1032,6 +1035,7 @@
       intake.error = error.message;
       ui.view = "intake";
     } finally {
+      working(false);
       ui.busy = false;
       render();
     }
