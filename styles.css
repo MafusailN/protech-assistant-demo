@@ -100,7 +100,7 @@ a:hover { text-decoration: underline; }
   .topbar-start { flex: 1 1 auto; flex-wrap: nowrap; }
   .topbar-start .demo-note { min-width: 0; }
   .topbar-start .demo-note > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .topbar-links, .bar-pick { flex: none; }
+  .topbar-links { flex: none; }
   .topbar-client { flex: none; }
 }
 /* Активная компания — как у портала: флажок, название как в 1С, стрелка. */
@@ -121,13 +121,6 @@ a:hover { text-decoration: underline; }
 }
 .topbar-links { display: flex; gap: 24px; font: 500 14px/20px var(--cond); text-transform: uppercase; color: #000; }
 .topbar-links span { display: inline-flex; align-items: center; gap: 0; cursor: default; }
-/* Временно: где стоит полоса итога — см. app.js, «полоса итога». */
-.bar-pick { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; padding-block: 4px; font: 400 13px/18px var(--font); color: var(--ink-2); }
-.bar-pick button {
-  padding: 1px 10px; border: 1px solid rgba(0, 0, 0, .3); border-radius: 9999px; background: none;
-  color: #000; font: 400 13px/18px var(--font); cursor: pointer;
-}
-.bar-pick button[aria-pressed="true"] { border-color: #1F1F1F; background: #1F1F1F; color: #fff; }
 
 .navbar { background: var(--header); }
 .navbar-in { display: flex; align-items: flex-end; min-height: 56px; }
@@ -454,6 +447,8 @@ table.lines { width: 100%; border-collapse: separate; border-spacing: 0; font-si
 .pbtn-primary:hover { border-color: var(--primary-hover); background: var(--primary-hover); }
 /* Отмена заявки — последней в полосе, красной: с 27.10.2026 по просьбе
    владельца стоит со всеми действиями, а не наверху листа. */
+/* Чего не хватает до заказа (способ получения): значок жёлтый, как у спорных строк. */
+.pbtn-todo .icon { color: var(--warn-icon); }
 .pbtn-danger { color: var(--error); }
 .pbtn-danger:hover { border-color: var(--error); background: #FDF0EE; }
 .pbtn:disabled, .pbtn:disabled:hover { border-color: transparent; background: rgba(0, 0, 0, .06); color: var(--ink-4); cursor: not-allowed; }
@@ -468,18 +463,22 @@ table.lines { width: 100%; border-collapse: separate; border-spacing: 0; font-si
 .step-chip.is-ready .icon { color: var(--secondary-dark); }
 .step-chip.is-busy { color: var(--ink-2); }
 
-/* Вариант «прилипает»: полоса у низа окна, как у портала. Странице — отступ
-   под неё, боковой панели — место над ней. На узком экране полоса заняла
-   бы полэкрана, там она всегда в конце страницы. */
+/* Полоса итога прилипает к низу окна, как у портала (решение владельца
+   27.10.2026: у маленькой заявки панель справа выше листа, и до кнопок
+   приходилось мотать). Странице — отступ под неё, боковой панели — место
+   над ней. На узком экране полоса заняла бы полэкрана, там она в конце
+   страницы. */
 @media (min-width: 901px) {
-  .checkout-fixed .checkout-wrap { position: fixed; z-index: 20; left: 0; right: 0; bottom: 0; pointer-events: none; }
-  .checkout-fixed .step-chip, .checkout-fixed .checkout { pointer-events: auto; }
-  .checkout-fixed .checkout { box-shadow: 0 -4px 16px rgba(0, 0, 0, .08); }
-  .checkout-fixed .page { padding-bottom: calc(var(--wrap-h, 0px) + 24px); }
-  html.checkout-fixed { scroll-padding-bottom: var(--wrap-h, 0px); }
+  .checkout-wrap { position: fixed; z-index: 20; left: 0; right: 0; bottom: 0; pointer-events: none; }
+  .checkout-wrap .step-chip, .checkout-wrap .checkout { pointer-events: auto; }
+  .checkout { box-shadow: 0 -4px 16px rgba(0, 0, 0, .08); }
+  /* Только рабочая страница: у кабинета тот же styles.css, а полосы нет. */
+  .page:has(> .workspace) { padding-bottom: calc(var(--wrap-h, 0px) + 24px); }
+  html { scroll-padding-bottom: var(--wrap-h, 0px); }
 }
 @media (min-width: 1101px) {
-  .checkout-fixed .side-body { max-height: calc(100vh - 32px - var(--bar-h, 0px)); }
+  /* С `.side` — чтобы перевесить общее правило `.side-body` ниже. */
+  .side .side-body { max-height: calc(100vh - 32px - var(--bar-h, 0px)); }
 }
 
 /* --- правая колонка ------------------------------------------------------- */

@@ -69,7 +69,6 @@
     invoice: null,
     intake: { text: "", file: null, error: "" },
     steps: [],
-    bar: "static",       // полоса итога: static — в конце страницы, fixed — прилипает к низу окна
   };
 
   // Боковая панель: свёрнута ли колонка (широкий экран, браузер помнит),
@@ -562,7 +561,10 @@
   function renderCheckout(card) {
     const html = ui.busy
       ? `<span class="spinner" aria-hidden="true"></span><span data-step>${esc(ui.step)}</span>`
-      : `${icon(card.ready ? "ok" : "attention", "icon-20")}<span>${esc(card.next_step || "Всё готово: проверьте клиента и оформляйте.")}</span>`;
+      : `${icon(card.ready ? "ok" : "attention", "icon-20")}<span>${esc(card.next_step || "Всё готово: проверьте клиента и оформляйте.")}</span>` +
+        // Шаг — выбрать получение: открыть выбор прямо из плашки.
+        (!card.delivery_id && card.lines.length && !card.counts.attention && !card.counts.retry && !card.counts.missing
+          ? `<button type="button" class="link" data-act="delivery">Выбрать</button>` : "");
     stepChip.className = `step-chip${ui.busy ? " is-busy" : card.ready ? " is-ready" : ""}`;
     // Плашка — живая область для читалки: переписываем, только когда текст сменился.
     if (html !== chipHtml) {
@@ -589,9 +591,12 @@
           <button type="button" class="pbtn pbtn-danger" data-act="cancel">${icon("delete", "icon-18")}Отменить заявку</button>
         </div>
         <div class="checkout-sums">
-          <div class="sum-col"><span class="caption">Получение</span>
-            <span class="sum-delivery"><span class="sum-text" title="${esc(card.delivery_label)}">${esc(card.delivery_label || "не выбрано")}</span>
-              <button type="button" class="link" data-act="delivery">${card.delivery_id ? "Изменить" : "Выбрать"}</button></span></div>
+          ${card.delivery_id
+            ? `<div class="sum-col"><span class="caption">Получение</span>
+                <span class="sum-delivery"><span class="sum-text" title="${esc(card.delivery_label)}">${esc(card.delivery_label)}</span>
+                  <button type="button" class="link" data-act="delivery">Изменить</button></span></div>`
+            // Не выбрано — кнопкой, а не ссылкой рядом с «не выбрано»: её не замечали.
+            : `<button type="button" class="pbtn pbtn-todo" data-act="delivery"${off}>${icon("attention", "icon-18")}Выбрать получение</button>`}
           <div class="sum-group">
             <span class="sum-label">Итого с НДС:</span>
             <div class="sum-col"><span class="caption">Сумма</span><span class="sum-value sum-total">${money(card.total)}</span></div>
@@ -783,34 +788,7 @@
   // Экран стал шире или уже — выезжающая панель закрывается, колонка остаётся как была.
   narrow.addEventListener("change", () => { side.drawer = false; applySide(); });
 
-  // --- полоса итога: прилипает или в конце страницы ------------------------
-  //
-  // Временно (15.09.2026). У портала полоса итога прилипает к низу окна,
-  // а владелец прежде просил, чтобы итог за ним не ездил, — он выберет,
-  // посмотрев на оба. Вариант живёт в адресе (`?itog=fixed`), чтобы открыть
-  // их рядом во вкладках; невыбранный уйдёт вместе с переключателем.
-
-  function applyBar() {
-    document.documentElement.classList.toggle("checkout-fixed", ui.bar === "fixed");
-    document.querySelectorAll(".bar-pick [data-bar]").forEach((button) => {
-      button.setAttribute("aria-pressed", String(button.dataset.bar === ui.bar));
-    });
-  }
-
-  $(".bar-pick").addEventListener("click", (event) => {
-    const button = event.target.closest("[data-bar]");
-    if (!button) return;
-    ui.bar = button.dataset.bar;
-    try {
-      const url = new URL(window.location.href);
-      if (ui.bar === "fixed") url.searchParams.set("itog", "fixed");
-      else url.searchParams.delete("itog");
-      window.history.replaceState(null, "", url);
-    } catch {
-      // Открыто файлом — адрес не меняется, вид всё равно переключён.
-    }
-    applyBar();
-  });
+  // --- полоса итога: прилипает к низу окна, как у портала -----------------
 
   // Высота полосы — в переменные: прилипшей полосе странице нужен отступ
   // снизу, а боковой панели — место над ней.
@@ -1169,6 +1147,7 @@
     if (row && !ui.busy) toggleRow(Number(row.dataset.number));
   });
   checkout.addEventListener("click", act);
+  stepChip.addEventListener("click", act);
 
   main.addEventListener("keydown", (event) => {
     const row = event.target.closest && event.target.closest("tr.row");
@@ -1278,8 +1257,6 @@
     side.collapsed = false;
   }
   applySide();
-  ui.bar = new URLSearchParams(window.location.search).get("itog") === "fixed" ? "fixed" : "static";
-  applyBar();
   // Пробник отдаёт заявку сразу, сервер — обещанием: открытую заявку,
   // последнюю закрытую или ничего — тогда начинаем с новой.
   Promise.resolve(api.boot()).then((boot) => {
