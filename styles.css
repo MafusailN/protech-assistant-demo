@@ -297,6 +297,9 @@ table.lines { width: 100%; border-collapse: separate; border-spacing: 0; font-si
 .lines tr.row > td:first-child { box-shadow: inset 3px 0 0 var(--stripe, transparent); }
 /* Раскрытая строка встаёт к верху экрана: под ней раскрывается решение. */
 .lines tr.row { scroll-margin-top: 16px; }
+/* Строку только что свернули кнопкой снизу — на миг подсвечена, чтобы взгляд её нашёл. */
+.lines tr.row.just-closed { animation: just-closed 1.6s ease-out; }
+@keyframes just-closed { from, 30% { background: var(--primary-10); } to { background: transparent; } }
 /* У «решается здесь» полосы нет: жёлтым на странице остаётся только значок
    (решение владельца 15.09.2026). Синяя и красная полосы — как были. */
 .row.m-retry { --stripe: var(--primary); }
@@ -752,4 +755,5 @@ dialog::backdrop { background: rgba(0, 0, 0, .4); }
   .spinner { animation: none; border-top-color: var(--primary); }
   .bar span, .btn, .pbtn, .side { transition: none; }
   .log { scroll-behavior: auto; }
+  .lines tr.row.just-closed { animation: none; background: var(--primary-10); }
 }

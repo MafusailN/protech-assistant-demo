@@ -1061,7 +1061,15 @@
 
   const actions = {
     filter: (el) => { ui.filter = el.dataset.filter; ui.open = null; ui.ask = {}; ui.found = {}; render(); },
-    close: () => { ui.open = null; ui.ask = {}; ui.found = {}; render(); },
+    close: (el, n) => {
+      // «Свернуть» стоит под длинным списком вариантов: свернули — и строка
+      // уезжала за верх экрана, а под курсором оказывались чужие строки.
+      // Возвращаем свёрнутую строку туда, где была кнопка, и подсвечиваем.
+      const was = el.getBoundingClientRect().bottom;
+      ui.open = null; ui.ask = {}; ui.found = {};
+      render();
+      settleRow(n, was);
+    },
     mode: (el, n) => {
       ui.mode[n] = el.dataset.mode;
       delete ui.ask[n];
@@ -1186,6 +1194,21 @@
     row.focus({ preventScroll: true });
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     row.scrollIntoView({ block: "start", behavior: reduce ? "auto" : "smooth" });
+  }
+
+  /** Свёрнутая строка — низом на высоту `bottom` окна, не под шапкой и не под полосой итога. */
+  function settleRow(number, bottom) {
+    const row = main.querySelector(`tr.row[data-number="${number}"]`);
+    if (!row) return;
+    row.focus({ preventScroll: true });
+    const rect = row.getBoundingClientRect();
+    const barTop = checkoutWrap.hidden || getComputedStyle(checkoutWrap).position !== "fixed"
+      ? window.innerHeight : checkoutWrap.getBoundingClientRect().top;
+    const want = Math.min(Math.max(bottom, rect.height + 16), barTop - 16);
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    window.scrollBy({ top: rect.bottom - want, behavior: reduce ? "auto" : "smooth" });
+    row.classList.add("just-closed");
+    setTimeout(() => row.classList.remove("just-closed"), 1600);
   }
 
   main.addEventListener("submit", (event) => {
