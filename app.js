@@ -160,6 +160,7 @@
       item.setAttribute("aria-hidden", "true");
       item.innerHTML = `<span class="spinner"></span><div data-step></div>`;
       logList.append(item);
+      syncSpinners();
     }
     item.lastElementChild.textContent = ui.step;
     logList.scrollTop = logList.scrollHeight;
@@ -226,6 +227,19 @@
     $("#composer").querySelectorAll("button, textarea").forEach((el) => { el.disabled = ui.busy || !live(); });
     if (ui.busy) {
       [main, checkout].forEach((root) => root.querySelectorAll("button, input, textarea").forEach((el) => { el.disabled = true; }));
+    }
+    syncSpinners();
+  }
+
+  /**
+   * Кругляшки крутятся по общим часам страницы. Перерисовка (каждое «N из M»)
+   * ставит новый кругляшок, и он начинал оборот с нуля — вращение дёргалось.
+   * С общим началом отсчёта новый продолжает ровно с того места, где был старый.
+   */
+  function syncSpinners() {
+    if (!document.getAnimations) return;
+    for (const animation of document.getAnimations()) {
+      if (animation.animationName === "spin" && animation.startTime !== 0) animation.startTime = 0;
     }
   }
 
@@ -677,6 +691,7 @@
       const now = i === ui.steps.length - 1;
       return `<li class="${now ? "is-now" : ""}">${now ? `<span class="spinner" aria-hidden="true"></span>` : icon("check", "icon-18")}${esc(step)}</li>`;
     }).join("");
+    syncSpinners();
     // Полоса — весь разбор, а не текущий шаг: человек читает её как «сколько
     // осталось всего», и откат к началу на шаге без счётчика сбивал.
     const [from, to] = stageSpan(ui.steps);
